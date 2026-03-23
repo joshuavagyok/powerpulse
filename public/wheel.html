@@ -149,8 +149,8 @@
 
   <div class="ic-form-wrap" id="ic-form-wrap">
     <h3>🎁 Add meg az IC nevedet a nyeremény igényléséhez!</h3>
-    <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith)">
-    <input type="text" id="ic-phone-input" placeholder="IC telefonszám (pl. 555-1234)">
+    <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith) *">
+    <input type="text" id="ic-discord-input" placeholder="Discord felhasználó (pl. @johndoe) — opcionális">
     <br>
     <button class="ic-claim-btn" onclick="claimPrize()">Igénylem a nyereményem →</button>
   </div>
@@ -281,8 +281,8 @@ function spin() {
   const icWrap = document.getElementById('ic-form-wrap');
   if (!icWrap.querySelector('input')) {
     icWrap.innerHTML = `<h3>🎁 Add meg az IC nevedet a nyeremény igényléséhez!</h3>
-      <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith)">
-      <input type="text" id="ic-phone-input" placeholder="IC telefonszám (pl. 555-1234)">
+      <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith) *">
+      <input type="text" id="ic-discord-input" placeholder="Discord (opcionális)">
       <br><button class="ic-claim-btn" onclick="claimPrize()">Igénylem a nyereményem →</button>`;
   }
 
@@ -358,13 +358,12 @@ function showResult(winner) {
 
 function claimPrize() {
   const name = document.getElementById('ic-name-input').value.trim();
-  const phone = document.getElementById('ic-phone-input').value.trim();
+  const discord = document.getElementById('ic-discord-input') ? document.getElementById('ic-discord-input').value.trim() : '';
   if (!name) { alert('Add meg az IC nevedet!'); return; }
 
-  // Elküldjük a szerverre
   const form = new FormData();
   form.append('ic_name', name);
-  form.append('ic_phone', phone);
+  form.append('ic_phone', discord); // discord mező megy phone helyett
   form.append('prize', lastPrize);
   form.append('prize_text', document.getElementById('result-title').textContent);
 
