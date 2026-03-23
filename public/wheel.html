@@ -149,8 +149,8 @@
 
   <div class="ic-form-wrap" id="ic-form-wrap">
     <h3>🎁 Add meg az IC nevedet a nyeremény igényléséhez!</h3>
-    <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith) *">
-    <input type="text" id="ic-discord-input" placeholder="Discord felhasználó (pl. @johndoe) — opcionális">
+    <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith)">
+    <input type="text" id="ic-phone-input" placeholder="IC telefonszám (pl. 555-1234)">
     <br>
     <button class="ic-claim-btn" onclick="claimPrize()">Igénylem a nyereményem →</button>
   </div>
@@ -173,7 +173,7 @@ const SEGMENTS = [
   { label: '❌ Semmi',         emoji: '❌', color: '#1a1a2e', prob: 45,   prize: 'nothing', display: 1 },
   { label: '🔄 Pörgess újra', emoji: '🔄', color: '#16213e', prob: 43.5, prize: 'respin',  display: 1 },
   { label: '🎰 Nyereményjáték',emoji: '🎰', color: '#1a2744', prob: 5,    prize: 'raffle',  display: 1 },
-  { label: '💰 100.000$',      emoji: '💰', color: '#1a2a1a', prob: 2,    prize: 'money',   display: 1 },
+  { label: '💰 10.000$',       emoji: '💰', color: '#1a2a1a', prob: 2,    prize: 'money',   display: 1 },
   { label: '🔧 Profi szerelés',emoji: '🔧', color: '#2a1a1a', prob: 3,    prize: 'service', display: 1 },
   { label: '⚡ Ingyenes ECU',  emoji: '⚡', color: '#2a2a1a', prob: 1.5,  prize: 'ecu',     display: 1 },
 ];
@@ -182,7 +182,7 @@ const PRIZE_MSGS = {
   nothing: { emoji:'❌', title:'Sajnos nem nyertél...', desc:'Ne csüggedj! Holnap új esély vár!', special: false },
   respin:  { emoji:'🔄', title:'Pörgess újra!', desc:'Szerencséd van — pörgetheted még egyszer!', special: true, extra: 'respin' },
   raffle:  { emoji:'🎰', title:'Bekerültél a nyereményjátékba!', desc:'Gratulálunk! Automatikusan részt veszel a nagy nyereményjátékban. Add meg az adataidat!', special: true },
-  money:   { emoji:'💸', title:'Nyertél 100.000$-t!', desc:'Gratulálunk! Add meg az IC nevedet az összeg átvételéhez.', special: true },
+  money:   { emoji:'💸', title:'Nyertél 10.000$-t!', desc:'Gratulálunk! Add meg az IC nevedet az összeg átvételéhez.', special: true },
   service: { emoji:'🔧', title:'Nyertél egy teljes Profi szerelést!', desc:'Gratulálunk! Ingyenes teljes profi szerelés jár neked. Add meg az adataidat!', special: true },
   ecu:     { emoji:'⚡', title:'Nyertél egy ingyenes ECU beállítást!', desc:'JACKPOT! Ingyenes ECU tuning jár neked. Add meg az adataidat!', special: true },
 };
@@ -270,21 +270,8 @@ function spin() {
   if (spinning || !canSpin()) return;
   spinning = true;
   document.getElementById('spin-btn').disabled = true;
-  document.getElementById('spin-btn').textContent = '🎰 Pörgetés!';
-  // Reseteljük az eredményt
   document.getElementById('result-box').classList.remove('show');
   document.getElementById('ic-form-wrap').classList.remove('show');
-  document.getElementById('result-emoji').textContent = '';
-  document.getElementById('result-title').textContent = '';
-  document.getElementById('result-desc').textContent = '';
-  // IC form resetelése ha korábban már kitöltve volt
-  const icWrap = document.getElementById('ic-form-wrap');
-  if (!icWrap.querySelector('input')) {
-    icWrap.innerHTML = `<h3>🎁 Add meg az IC nevedet a nyeremény igényléséhez!</h3>
-      <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith) *">
-      <input type="text" id="ic-discord-input" placeholder="Discord (opcionális)">
-      <br><button class="ic-claim-btn" onclick="claimPrize()">Igénylem a nyereményem →</button>`;
-  }
 
   const winner = getWinner();
   // Kiszámoljuk hol kell megállni — egyforma vizuális szegmensek alapján!
@@ -358,12 +345,13 @@ function showResult(winner) {
 
 function claimPrize() {
   const name = document.getElementById('ic-name-input').value.trim();
-  const discord = document.getElementById('ic-discord-input') ? document.getElementById('ic-discord-input').value.trim() : '';
+  const phone = document.getElementById('ic-phone-input').value.trim();
   if (!name) { alert('Add meg az IC nevedet!'); return; }
 
+  // Elküldjük a szerverre
   const form = new FormData();
   form.append('ic_name', name);
-  form.append('ic_phone', discord); // discord mező megy phone helyett
+  form.append('ic_phone', phone);
   form.append('prize', lastPrize);
   form.append('prize_text', document.getElementById('result-title').textContent);
 

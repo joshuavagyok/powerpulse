@@ -79,7 +79,7 @@ window.addEventListener('resize',()=>{resize();initP();});resize();initP();draw(
     <div class="admin-header" style="margin-bottom:16px"><h2 style="font-size:20px">🎰 Nyeremények</h2></div>
     <div class="table-wrap">
       <table class="bookings-table">
-        <thead><tr><th>IC Név</th><th>Discord</th><th>Nyeremény</th><th>Dátum</th><th>Státusz</th><th>Műveletek</th></tr></thead>
+        <thead><tr><th>IC Név</th><th>Telefon</th><th>Nyeremény</th><th>Dátum</th><th>Státusz</th><th>Műveletek</th></tr></thead>
         <tbody id="prizes-tbody"><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Betöltés...</td></tr></tbody>
       </table>
     </div>
@@ -115,36 +115,6 @@ window.addEventListener('resize',()=>{resize();initP();});resize();initP();draw(
     </div>
   </div>
 
-  <!-- SPIN TIMEOUT KEZELÉS -->
-  <div style="margin-bottom:32px">
-    <div class="admin-header" style="margin-bottom:16px">
-      <h2 style="font-size:20px">🎰 Szerencsekerék — Napi timeout törlése</h2>
-      <button class="action-btn" onclick="loadSpinTimeouts()">🔄 Frissít</button>
-    </div>
-    <div class="form-card" style="margin-bottom:16px">
-      <div class="form-header"><h2>IC név alapján visszaállítás</h2><p style="color:var(--text-muted);font-size:13px">Ha valaki nem tudott pörgetni (pl. hiba volt), töröld a timeoutját</p></div>
-      <div style="display:flex;gap:12px;align-items:flex-end">
-        <div class="form-group" style="flex:1;margin:0">
-          <label>IC Név</label>
-          <input type="text" id="spin-reset-name" placeholder="pl. John Smith">
-        </div>
-        <button class="submit-btn" style="max-width:180px;padding:12px" onclick="resetSpinByName()">
-          <span>Timeout törlése</span>
-        </button>
-      </div>
-      <div id="spin-reset-msg" style="display:none;margin-top:12px;color:#22c55e;font-size:14px">✅ Timeout törölve!</div>
-    </div>
-
-    <div class="table-wrap">
-      <table class="bookings-table">
-        <thead><tr><th>IC Név</th><th>Ma pörgetett</th><th>Műveletek</th></tr></thead>
-        <tbody id="spin-timeouts-tbody">
-          <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">Betöltés...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
   <!-- JELSZÓ -->
   <div class="form-card" style="max-width:400px;margin-bottom:40px">
     <div class="form-header"><h2>🔑 Jelszó változtatás</h2></div>
@@ -167,9 +137,7 @@ async function doLogin() {
     document.getElementById('admin-view').style.display='block';
     document.getElementById('admin-nav').style.display='flex';
     loadData();
-    loadSpinTimeouts();
     setInterval(loadData, 15000);
-    setInterval(loadSpinTimeouts, 15000);
   } else {
     document.getElementById('login-error').style.display='block';
   }
@@ -284,35 +252,6 @@ async function addAnnouncement() {
   document.getElementById('ann-text').value='';
   loadData();
 }
-async function loadSpinTimeouts() {
-  const r = await fetch('/api/admin/spin-timeouts');
-  if (!r.ok) return;
-  const names = await r.json();
-  const tbody = document.getElementById('spin-timeouts-tbody');
-  tbody.innerHTML = names.length ? names.map(name => `
-    <tr>
-      <td><strong>${esc(name)}</strong></td>
-      <td><span class="badge badge-done">⏳ Pörgetett ma</span></td>
-      <td><button class="action-btn" onclick="resetSpin('${esc(name)}')">🔄 Timeout törlése</button></td>
-    </tr>`).join('') :
-    '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">Ma még senki nem pörgetett</td></tr>';
-}
-
-async function resetSpin(name) {
-  await fetch(`/api/admin/spin-reset/${encodeURIComponent(name)}`, {method:'POST'});
-  loadSpinTimeouts();
-}
-
-async function resetSpinByName() {
-  const name = document.getElementById('spin-reset-name').value.trim();
-  if (!name) return;
-  await fetch(`/api/admin/spin-reset/${encodeURIComponent(name)}`, {method:'POST'});
-  document.getElementById('spin-reset-msg').style.display = 'block';
-  document.getElementById('spin-reset-name').value = '';
-  setTimeout(() => document.getElementById('spin-reset-msg').style.display='none', 3000);
-  loadSpinTimeouts();
-}
-
 async function changePassword() {
   const p = document.getElementById('new-pass').value;
   if (p.length < 4) return;
