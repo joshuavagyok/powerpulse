@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerPulse — Szerencsekerék</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.wheel-page { max-width: 680px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; text-align: center; }
+.wheel-title { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+.wheel-sub { color: var(--text-muted); font-size: 15px; margin-bottom: 40px; }
+
+/* KERÉK */
+.wheel-wrap {
+  position: relative; display: inline-block;
+  margin-bottom: 32px;
+}
+.wheel-pointer {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 28px solid var(--accent);
+  z-index: 10;
+  filter: drop-shadow(0 2px 6px rgba(245,158,11,0.5));
+}
+#wheel-canvas {
+  border-radius: 50%;
+  box-shadow: 0 0 40px rgba(245,158,11,0.2), 0 0 80px rgba(0,0,0,0.5);
+  display: block;
+}
+.wheel-center {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #d97706);
+  border: 4px solid #0a0a1a;
+  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 20px rgba(245,158,11,0.4);
+}
+
+/* SPIN GOMB */
+#spin-btn {
+  padding: 16px 48px;
+  background: linear-gradient(135deg, var(--accent), #d97706);
+  border: none; border-radius: 14px;
+  color: #000; font-family: inherit;
+  font-size: 18px; font-weight: 700;
+  cursor: pointer; transition: all 0.25s;
+  box-shadow: 0 6px 25px rgba(245,158,11,0.3);
+  margin-bottom: 16px;
+}
+#spin-btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 10px 35px rgba(245,158,11,0.45); }
+#spin-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.wheel-timer { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; min-height: 20px; }
+
+/* EREDMÉNY */
+.result-box {
+  display: none;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid var(--accent);
+  border-radius: 18px;
+  padding: 28px 32px;
+  margin-top: 24px;
+  animation: popIn 0.4s cubic-bezier(0.22,1,0.36,1);
+}
+.result-box.show { display: block; }
+@keyframes popIn { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+.result-emoji { font-size: 52px; margin-bottom: 12px; }
+.result-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+.result-desc { font-size: 15px; color: var(--text-muted); }
+.result-special { color: var(--accent); }
+
+/* IC FORM */
+.ic-form-wrap {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-top: 20px;
+  display: none;
+}
+.ic-form-wrap.show { display: block; }
+.ic-form-wrap h3 { font-size: 16px; margin-bottom: 16px; }
+.ic-form-wrap input {
+  width: 100%; background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 16px; color: var(--text);
+  font-family: inherit; font-size: 15px; outline: none;
+  margin-bottom: 12px;
+}
+.ic-form-wrap input:focus { border-color: var(--accent); }
+.ic-claim-btn {
+  padding: 11px 28px; background: linear-gradient(135deg, var(--accent), #d97706);
+  border: none; border-radius: 10px; color: #000;
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.ic-claim-btn:hover { transform: translateY(-2px); }
+
+/* Confetti overlay */
+.confetti-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 999; overflow: hidden; }
+.conf { position: absolute; width: 10px; height: 10px; border-radius: 2px; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">Power<span class="logo-accent">Pulse</span></span>
+    </a>
+    <nav class="topbar-nav">
+      <a href="index.html" class="nav-link">← Vissza</a>
+    </nav>
+  </div>
+</header>
+
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<div class="wheel-page">
+  <div class="hero-badge" style="margin-bottom:20px;display:inline-flex">🎰 Napi Szerencsekerék</div>
+  <h1 class="wheel-title">Pörgesd meg a kereket!</h1>
+  <p class="wheel-sub">Naponta egyszer pörgetheted — minden nap új esély vár rád!</p>
+
+  <div class="wheel-wrap">
+    <div class="wheel-pointer"></div>
+    <canvas id="wheel-canvas" width="420" height="420"></canvas>
+    <div class="wheel-center">⚡</div>
+  </div>
+
+  <br>
+  <button id="spin-btn" onclick="spin()">🎰 Pörgetés!</button>
+  <div class="wheel-timer" id="wheel-timer"></div>
+
+  <div class="result-box" id="result-box">
+    <div class="result-emoji" id="result-emoji"></div>
+    <div class="result-title" id="result-title"></div>
+    <div class="result-desc" id="result-desc"></div>
+  </div>
+
+  <div class="ic-form-wrap" id="ic-form-wrap">
+    <h3>🎁 Add meg az IC nevedet a nyeremény igényléséhez!</h3>
+    <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith)">
+    <input type="text" id="ic-phone-input" placeholder="IC telefonszám (pl. 555-1234)">
+    <br>
+    <button class="ic-claim-btn" onclick="claimPrize()">Igénylem a nyereményem →</button>
+  </div>
+</div>
+
+<script>
+// ===== CANVAS HÁTTÉR =====
+const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
+let W,H,particles;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+function Particle(){this.x=Math.random()*W;this.y=Math.random()*H;this.vx=(Math.random()-.5)*.4;this.vy=(Math.random()-.5)*.4;this.r=Math.random()*2+.5;this.alpha=Math.random()*.5+.2;}
+function initP(){particles=[];const c=Math.floor(W*H/8000);for(let i=0;i<c;i++)particles.push(new Particle());}
+function drawBg(){const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0a0a1a');g.addColorStop(.4,'#0d0d20');g.addColorStop(1,'#0a0a10');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);const g1=ctx.createRadialGradient(W*.1,H*.15,0,W*.1,H*.15,W*.45);g1.addColorStop(0,'rgba(245,158,11,0.07)');g1.addColorStop(1,'transparent');ctx.fillStyle=g1;ctx.fillRect(0,0,W,H);}
+function animBg(){drawBg();for(let i=0;i<particles.length;i++){const p=particles[i];for(let j=i+1;j<particles.length;j++){const q=particles[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=`rgba(245,158,11,${.1*(1-d/120)})`;ctx.lineWidth=.5;ctx.stroke();}}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(245,158,11,${p.alpha})`;ctx.fill();p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;}requestAnimationFrame(animBg);}
+window.addEventListener('resize',()=>{resize();initP();});resize();initP();animBg();
+
+// ===== KERÉK ADATOK =====
+// prob = valódi valószínűség (belső logika), de a kerék vizuálisan egyforma szeleteket mutat!
+const SEGMENTS = [
+  { label: '❌ Semmi',         emoji: '❌', color: '#1a1a2e', prob: 45,   prize: 'nothing', display: 1 },
+  { label: '🔄 Pörgess újra', emoji: '🔄', color: '#16213e', prob: 43.5, prize: 'respin',  display: 1 },
+  { label: '🎰 Nyereményjáték',emoji: '🎰', color: '#1a2744', prob: 5,    prize: 'raffle',  display: 1 },
+  { label: '💰 10.000$',       emoji: '💰', color: '#1a2a1a', prob: 2,    prize: 'money',   display: 1 },
+  { label: '🔧 Profi szerelés',emoji: '🔧', color: '#2a1a1a', prob: 3,    prize: 'service', display: 1 },
+  { label: '⚡ Ingyenes ECU',  emoji: '⚡', color: '#2a2a1a', prob: 1.5,  prize: 'ecu',     display: 1 },
+];
+
+const PRIZE_MSGS = {
+  nothing: { emoji:'❌', title:'Sajnos nem nyertél...', desc:'Ne csüggedj! Holnap új esély vár!', special: false },
+  respin:  { emoji:'🔄', title:'Pörgess újra!', desc:'Szerencséd van — pörgetheted még egyszer!', special: true, extra: 'respin' },
+  raffle:  { emoji:'🎰', title:'Bekerültél a nyereményjátékba!', desc:'Gratulálunk! Automatikusan részt veszel a nagy nyereményjátékban. Add meg az adataidat!', special: true },
+  money:   { emoji:'💸', title:'Nyertél 10.000$-t!', desc:'Gratulálunk! Add meg az IC nevedet az összeg átvételéhez.', special: true },
+  service: { emoji:'🔧', title:'Nyertél egy teljes Profi szerelést!', desc:'Gratulálunk! Ingyenes teljes profi szerelés jár neked. Add meg az adataidat!', special: true },
+  ecu:     { emoji:'⚡', title:'Nyertél egy ingyenes ECU beállítást!', desc:'JACKPOT! Ingyenes ECU tuning jár neked. Add meg az adataidat!', special: true },
+};
+
+// ===== KERÉK RAJZOLÁS =====
+const wCanvas = document.getElementById('wheel-canvas');
+const wCtx = wCanvas.getContext('2d');
+const CX = wCanvas.width / 2;
+const CY = wCanvas.height / 2;
+const RADIUS = CX - 10;
+let currentAngle = 0;
+
+function drawWheel(rotation) {
+  wCtx.clearRect(0, 0, wCanvas.width, wCanvas.height);
+  // Vizuálisan egyforma szegmensek!
+  const totalDisplay = SEGMENTS.length;
+  let startAngle = rotation;
+
+  SEGMENTS.forEach(seg => {
+    const sliceAngle = (1 / totalDisplay) * 2 * Math.PI;
+
+    // Szelet
+    wCtx.beginPath();
+    wCtx.moveTo(CX, CY);
+    wCtx.arc(CX, CY, RADIUS, startAngle, startAngle + sliceAngle);
+    wCtx.closePath();
+    wCtx.fillStyle = seg.color;
+    wCtx.fill();
+    wCtx.strokeStyle = 'rgba(245,158,11,0.3)';
+    wCtx.lineWidth = 2;
+    wCtx.stroke();
+
+    // Szöveg
+    wCtx.save();
+    wCtx.translate(CX, CY);
+    wCtx.rotate(startAngle + sliceAngle / 2);
+    wCtx.textAlign = 'right';
+    wCtx.fillStyle = '#e2e8f0';
+    wCtx.font = 'bold 13px Space Grotesk, sans-serif';
+    wCtx.fillText(seg.label, RADIUS - 12, 5);
+    wCtx.restore();
+
+    startAngle += sliceAngle;
+  });
+
+  // Külső gyűrű
+  wCtx.beginPath();
+  wCtx.arc(CX, CY, RADIUS, 0, 2*Math.PI);
+  wCtx.strokeStyle = 'rgba(245,158,11,0.6)';
+  wCtx.lineWidth = 4;
+  wCtx.stroke();
+}
+
+drawWheel(0);
+
+// ===== SPIN LOGIKA =====
+let spinning = false;
+let pendingRespin = false;
+let lastPrize = null;
+
+function getStorageKey() { return 'pp_spin_' + new Date().toISOString().split('T')[0]; }
+
+function canSpin() {
+  if (pendingRespin) return true;
+  return !localStorage.getItem(getStorageKey());
+}
+
+function markSpun() {
+  if (!pendingRespin) localStorage.setItem(getStorageKey(), '1');
+  pendingRespin = false;
+}
+
+function getWinner() {
+  const total = SEGMENTS.reduce((s,seg)=>s+seg.prob,0);
+  let rand = Math.random() * total;
+  for (const seg of SEGMENTS) {
+    rand -= seg.prob;
+    if (rand <= 0) return seg;
+  }
+  return SEGMENTS[0];
+}
+
+function spin() {
+  if (spinning || !canSpin()) return;
+  spinning = true;
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('result-box').classList.remove('show');
+  document.getElementById('ic-form-wrap').classList.remove('show');
+
+  const winner = getWinner();
+  // Kiszámoljuk hol kell megállni — egyforma vizuális szegmensek alapján!
+  const totalDisplay = SEGMENTS.length;
+  let targetAngle = 0;
+  let cumulative = 0;
+  for (const seg of SEGMENTS) {
+    const sliceAngle = (1 / totalDisplay) * 2 * Math.PI;
+    if (seg.prize === winner.prize) {
+      targetAngle = cumulative + sliceAngle / 2;
+      break;
+    }
+    cumulative += sliceAngle;
+  }
+
+  // A mutató felülről (PI*1.5) mutat — a kerék forog
+  // Célszög: a mutató a szelet közepére essen
+  const spins = 5 + Math.floor(Math.random() * 4); // 5-8 teljes forduló
+  const finalAngle = spins * 2 * Math.PI + (Math.PI * 1.5 - targetAngle);
+
+  const startAngle = currentAngle;
+  const duration = 4000 + Math.random() * 1500;
+  const startTime = performance.now();
+
+  function easeOut(t) { return 1 - Math.pow(1-t, 4); }
+
+  function animFrame(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easedProgress = easeOut(progress);
+    currentAngle = startAngle + finalAngle * easedProgress;
+    drawWheel(currentAngle);
+
+    if (progress < 1) {
+      requestAnimationFrame(animFrame);
+    } else {
+      spinning = false;
+      markSpun();
+      showResult(winner);
+    }
+  }
+
+  requestAnimationFrame(animFrame);
+}
+
+function showResult(winner) {
+  const msg = PRIZE_MSGS[winner.prize];
+  document.getElementById('result-emoji').textContent = msg.emoji;
+  document.getElementById('result-title').textContent = msg.title;
+  document.getElementById('result-desc').textContent = msg.desc;
+  document.getElementById('result-box').classList.add('show');
+
+  lastPrize = winner.prize;
+
+  if (winner.prize === 'respin') {
+    pendingRespin = true;
+    document.getElementById('spin-btn').disabled = false;
+    document.getElementById('spin-btn').textContent = '🔄 Pörgess újra!';
+  } else if (msg.special && winner.prize !== 'nothing') {
+    document.getElementById('ic-form-wrap').classList.add('show');
+    if (winner.prize !== 'nothing' && winner.prize !== 'respin') confetti();
+  }
+
+  updateTimer();
+}
+
+function claimPrize() {
+  const name = document.getElementById('ic-name-input').value.trim();
+  const phone = document.getElementById('ic-phone-input').value.trim();
+  if (!name) { alert('Add meg az IC nevedet!'); return; }
+
+  // Elküldjük a szerverre
+  const form = new FormData();
+  form.append('ic_name', name);
+  form.append('ic_phone', phone);
+  form.append('prize', lastPrize);
+  form.append('prize_text', document.getElementById('result-title').textContent);
+
+  fetch('/api/prize', { method: 'POST', body: form })
+    .then(() => {
+      document.getElementById('ic-form-wrap').innerHTML = '<p style="color:#22c55e;font-size:15px;padding:16px">✅ Nyereményed rögzítve! Hamarosan felvesszük veled a kapcsolatot.</p>';
+    }).catch(() => {
+      document.getElementById('ic-form-wrap').innerHTML = '<p style="color:#22c55e;font-size:15px;padding:16px">✅ Nyereményed rögzítve! Hamarosan felvesszük veled a kapcsolatot.</p>';
+    });
+}
+
+function confetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  const colors = ['#f59e0b','#ef4444','#22c55e','#3b82f6','#8b5cf6','#fff'];
+  for (let i = 0; i < 80; i++) {
+    const c = document.createElement('div');
+    c.className = 'conf';
+    c.style.cssText = `left:${Math.random()*100}%;top:-10px;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;animation-duration:${2+Math.random()*2}s;animation-delay:${Math.random()*0.5}s`;
+    wrap.appendChild(c);
+    setTimeout(() => c.remove(), 4000);
+  }
+}
+
+function updateTimer() {
+  const timerEl = document.getElementById('wheel-timer');
+  if (pendingRespin) { timerEl.textContent = '🔄 Van egy ingyenes pörgetésed!'; return; }
+  if (canSpin()) { timerEl.textContent = ''; return; }
+
+  function tick() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0,0,0,0);
+    const diff = tomorrow - now;
+    const h = Math.floor(diff/3600000);
+    const m = Math.floor((diff%3600000)/60000);
+    const s = Math.floor((diff%60000)/1000);
+    timerEl.textContent = `⏰ Következő pörgetés: ${h}ó ${m}p ${s}mp múlva`;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// Init
+if (!canSpin()) {
+  document.getElementById('spin-btn').disabled = true;
+  updateTimer();
+} else {
+  document.getElementById('wheel-timer').textContent = '🎰 Ma még nem pörgettél — próbáld ki!';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerPulse Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<script>
+const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
+let W,H,particles;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+function Particle(){this.x=Math.random()*W;this.y=Math.random()*H;this.vx=(Math.random()-.5)*.3;this.vy=(Math.random()-.5)*.3;this.r=Math.random()*1.5+.5;this.alpha=Math.random()*.4+.1;}
+function initP(){particles=[];const c=Math.floor(W*H/10000);for(let i=0;i<c;i++)particles.push(new Particle());}
+function draw(){const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0a0a1a');g.addColorStop(.5,'#0d0d20');g.addColorStop(1,'#0a0a10');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);const g1=ctx.createRadialGradient(W*.1,H*.2,0,W*.1,H*.2,W*.4);g1.addColorStop(0,'rgba(245,158,11,0.06)');g1.addColorStop(1,'transparent');ctx.fillStyle=g1;ctx.fillRect(0,0,W,H);for(let i=0;i<particles.length;i++){const p=particles[i];for(let j=i+1;j<particles.length;j++){const q=particles[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);if(d<100){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=`rgba(245,158,11,${.1*(1-d/100)})`;ctx.lineWidth=.5;ctx.stroke();}}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(245,158,11,${p.alpha})`;ctx.fill();p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;}requestAnimationFrame(draw);}
+window.addEventListener('resize',()=>{resize();initP();});resize();initP();draw();
+</script>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">Power<span class="logo-accent">Admin</span></span>
+    </a>
+    <nav class="topbar-nav" id="admin-nav" style="display:none">
+      <a href="index.html" class="nav-link">← Oldal</a>
+      <a href="wheel.html" class="nav-link" style="color:var(--accent)">🎰 Kerék</a>
+      <a href="#" onclick="logout()" class="nav-link">Kijelentkezés</a>
+    </nav>
+  </div>
+</header>
+
+<!-- LOGIN -->
+<div id="login-view" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">Power<span class="logo-accent">Pulse</span></span>
+    </div>
+    <p class="login-sub">Admin belépés</p>
+    <div id="login-error" class="error-msg" style="display:none">❌ Hibás felhasználónév vagy jelszó!</div>
+    <input type="text" id="login-user" placeholder="Felhasználónév">
+    <input type="password" id="login-pass" placeholder="Jelszó" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="submit-btn" onclick="doLogin()"><span>Belépés</span><span class="btn-arrow">→</span></button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="admin-view" class="admin-main" style="display:none">
+
+  <!-- STATS -->
+  <div class="admin-header">
+    <h1>📋 PowerPulse Admin</h1>
+  </div>
+  <div class="admin-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:32px">
+    <div class="stat-card"><div class="stat-label">Összes foglalás</div><div class="stat-value accent" id="s-bookings">—</div></div>
+    <div class="stat-card"><div class="stat-label">Új / várakozó</div><div class="stat-value" style="color:#22c55e" id="s-new">—</div></div>
+    <div class="stat-card"><div class="stat-label">Elvégezve</div><div class="stat-value" style="color:var(--text-muted)" id="s-done">—</div></div>
+    <div class="stat-card"><div class="stat-label">👁️ Látogatók</div><div class="stat-value" style="color:#8b5cf6" id="s-visitors">—</div><div style="font-size:12px;color:var(--text-muted);margin-top:6px">Ma: <span id="s-today">—</span></div></div>
+  </div>
+
+  <!-- FOGLALÁSOK -->
+  <div style="margin-bottom:32px">
+    <div class="admin-header" style="margin-bottom:16px"><h2 style="font-size:20px">📋 Foglalások</h2></div>
+    <div class="table-wrap">
+      <table class="bookings-table">
+        <thead><tr><th>IC Név</th><th>Discord</th><th>Telefon</th><th>Kocsi</th><th>Elvárás</th><th>Megjegyzés</th><th>Dátum</th><th>Státusz</th><th>Műveletek</th></tr></thead>
+        <tbody id="bookings-tbody"><tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">Betöltés...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NYEREMÉNYEK -->
+  <div style="margin-bottom:32px">
+    <div class="admin-header" style="margin-bottom:16px"><h2 style="font-size:20px">🎰 Nyeremények</h2></div>
+    <div class="table-wrap">
+      <table class="bookings-table">
+        <thead><tr><th>IC Név</th><th>Telefon</th><th>Nyeremény</th><th>Dátum</th><th>Státusz</th><th>Műveletek</th></tr></thead>
+        <tbody id="prizes-tbody"><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Betöltés...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- HIRDETMÉNYEK -->
+  <div style="margin-bottom:32px">
+    <div class="admin-header" style="margin-bottom:16px"><h2 style="font-size:20px">📢 Hirdetmények</h2></div>
+    <div class="form-card" style="margin-bottom:16px">
+      <div class="form-header"><h2>+ Új hirdetmény</h2></div>
+      <div class="form-grid" style="grid-template-columns:80px 1fr">
+        <div class="form-group"><label>Emoji</label><input type="text" id="ann-emoji" value="📢" maxlength="4"></div>
+        <div class="form-group"><label>Szöveg <span class="required">*</span></label><textarea id="ann-text" rows="3" placeholder="Hirdetmény szövege..."></textarea></div>
+      </div>
+      <button class="submit-btn" style="max-width:240px;padding:12px" onclick="addAnnouncement()"><span>Hozzáadás</span><span class="btn-arrow">→</span></button>
+    </div>
+    <div class="table-wrap">
+      <table class="bookings-table">
+        <thead><tr><th>Emoji</th><th>Szöveg</th><th>Státusz</th><th>Műveletek</th></tr></thead>
+        <tbody id="ann-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- VÉLEMÉNYEK -->
+  <div style="margin-bottom:32px">
+    <div class="admin-header" style="margin-bottom:16px"><h2 style="font-size:20px">⭐ Vélemények</h2></div>
+    <div class="table-wrap">
+      <table class="bookings-table">
+        <thead><tr><th>Név</th><th>Kocsi</th><th>Csillag</th><th>Vélemény</th><th>Dátum</th><th>Státusz</th><th>Műveletek</th></tr></thead>
+        <tbody id="reviews-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- JELSZÓ -->
+  <div class="form-card" style="max-width:400px;margin-bottom:40px">
+    <div class="form-header"><h2>🔑 Jelszó változtatás</h2></div>
+    <div class="form-group"><label>Új jelszó</label><input type="password" id="new-pass" placeholder="Min. 4 karakter"></div>
+    <button class="submit-btn" onclick="changePassword()"><span>Mentés</span><span class="btn-arrow">→</span></button>
+    <div id="pw-msg" style="display:none;margin-top:12px;color:#22c55e;font-size:14px">✅ Jelszó megváltozott!</div>
+  </div>
+
+</div>
+
+<script>
+const goalLabels = { vegsebbseg:'🏁 Végsebesség', gyorsulas:'⚡ Gyorsulás', mindketto:'🔥 Mindkettő' };
+
+async function doLogin() {
+  const u = document.getElementById('login-user').value;
+  const p = document.getElementById('login-pass').value;
+  const r = await fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}` });
+  if (r.ok) {
+    document.getElementById('login-view').style.display='none';
+    document.getElementById('admin-view').style.display='block';
+    document.getElementById('admin-nav').style.display='flex';
+    loadData();
+    setInterval(loadData, 15000);
+  } else {
+    document.getElementById('login-error').style.display='block';
+  }
+}
+
+function logout() { fetch('/api/admin/logout'); location.reload(); }
+
+async function loadData() {
+  const r = await fetch('/api/admin/data');
+  if (!r.ok) return;
+  const d = await r.json();
+  
+  // Stats
+  document.getElementById('s-bookings').textContent = d.bookings.length;
+  document.getElementById('s-new').textContent = d.bookings.filter(b=>b.status==='new').length;
+  document.getElementById('s-done').textContent = d.bookings.filter(b=>b.status==='done').length;
+  document.getElementById('s-visitors').textContent = d.visitors.total || 0;
+  document.getElementById('s-today').textContent = d.visitors.today || 0;
+
+  // Foglalások
+  const bt = document.getElementById('bookings-tbody');
+  bt.innerHTML = d.bookings.length ? d.bookings.map(b=>`
+    <tr>
+      <td><strong>${esc(b.ic_name)}</strong></td>
+      <td>${esc(b.discord)}</td>
+      <td>${esc(b.phone)}</td>
+      <td>${esc(b.car)}</td>
+      <td>${goalLabels[b.goal]||b.goal}</td>
+      <td style="max-width:150px;font-size:13px;color:var(--text-muted)">${esc(b.notes||'—')}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${esc(b.created)}</td>
+      <td>${b.status==='new'?'<span class="badge badge-new">Új</span>':'<span class="badge badge-done">Kész</span>'}</td>
+      <td style="white-space:nowrap">
+        ${b.status==='new'?`<button class="action-btn" onclick="bookingAction('${b.id}','done')">✅ Kész</button>`:`<button class="action-btn" onclick="bookingAction('${b.id}','new')">↩</button>`}
+        <button class="action-btn danger" onclick="if(confirm('Törlöd?'))bookingAction('${b.id}','delete')">🗑</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">📭 Még nincs foglalás</td></tr>';
+
+  // Nyeremények
+  const pt = document.getElementById('prizes-tbody');
+  pt.innerHTML = d.prizes.length ? d.prizes.map(p=>`
+    <tr>
+      <td><strong>${esc(p.ic_name)}</strong></td>
+      <td>${esc(p.ic_phone||'—')}</td>
+      <td style="color:var(--accent)">${esc(p.prize_text)}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${esc(p.created)}</td>
+      <td>${p.status==='pending'?'<span class="badge badge-new">⏳ Kiadandó</span>':'<span class="badge badge-done">✅ Kiadva</span>'}</td>
+      <td>${p.status==='pending'?`<button class="action-btn" onclick="prizeAction('${p.id}')">✅ Kiadva</button>`:''}
+      <button class="action-btn danger" onclick="if(confirm('Törlöd?'))prizeDelete('${p.id}')">🗑</button></td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">🎰 Még nincs nyeremény</td></tr>';
+
+  // Hirdetmények
+  const at = document.getElementById('ann-tbody');
+  at.innerHTML = d.announcements.length ? d.announcements.map(a=>`
+    <tr>
+      <td style="font-size:22px;text-align:center">${esc(a.emoji)}</td>
+      <td style="font-size:14px">${esc(a.text)}</td>
+      <td>${a.active?'<span class="badge badge-new">✅ Aktív</span>':'<span class="badge badge-done">⭕ Ki</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="action-btn" onclick="toggleAnn('${a.id}')">${a.active?'⭕ Kikapcsol':'✅ Bekapcsol'}</button>
+        <button class="action-btn danger" onclick="if(confirm('Törlöd?'))deleteAnn('${a.id}')">🗑</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Nincs hirdetmény</td></tr>';
+
+  // Vélemények
+  const rt = document.getElementById('reviews-tbody');
+  rt.innerHTML = d.reviews.length ? d.reviews.map(r=>`
+    <tr>
+      <td><strong>${esc(r.name)}</strong></td>
+      <td>${esc(r.car||'—')}</td>
+      <td style="color:var(--accent)">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</td>
+      <td style="max-width:200px;font-size:13px;color:var(--text-muted)">${esc(r.text)}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${esc(r.created)}</td>
+      <td>${r.status==='pending'?'<span class="badge" style="background:rgba(245,158,11,0.12);color:var(--accent)">⏳</span>':r.status==='approved'?'<span class="badge badge-new">✅</span>':'<span class="badge badge-done">❌</span>'}</td>
+      <td style="white-space:nowrap">
+        ${r.status==='pending'?`<button class="action-btn" onclick="reviewAction('${r.id}','approved')">✅</button><button class="action-btn danger" onclick="reviewAction('${r.id}','rejected')">❌</button>`:''}
+        ${r.status==='approved'?`<button class="action-btn danger" onclick="reviewAction('${r.id}','rejected')">↩</button>`:''}
+        ${r.status==='rejected'?`<button class="action-btn" onclick="reviewAction('${r.id}','approved')">↩</button>`:''}
+        <button class="action-btn danger" onclick="if(confirm('Törlöd?'))reviewAction('${r.id}','delete')">🗑</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted)">Nincs vélemény</td></tr>';
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function bookingAction(id, action) {
+  await fetch(`/api/admin/booking/${id}/${action}`, {method:'POST'}); loadData();
+}
+async function prizeAction(id) {
+  await fetch(`/api/admin/prize/${id}/done`, {method:'POST'}); loadData();
+}
+async function prizeDelete(id) {
+  await fetch(`/api/admin/booking/${id}/delete`, {method:'POST'}); loadData();
+}
+async function reviewAction(id, action) {
+  await fetch(`/api/admin/review/${id}/${action}`, {method:'POST'}); loadData();
+}
+async function toggleAnn(id) {
+  await fetch(`/api/admin/announcement/${id}/toggle`, {method:'POST'}); loadData();
+}
+async function deleteAnn(id) {
+  await fetch(`/api/admin/announcement/${id}`, {method:'DELETE'}); loadData();
+}
+async function addAnnouncement() {
+  const text = document.getElementById('ann-text').value.trim();
+  const emoji = document.getElementById('ann-emoji').value || '📢';
+  if (!text) return;
+  await fetch('/api/admin/announcement', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:`text=${encodeURIComponent(text)}&emoji=${encodeURIComponent(emoji)}`
+  });
+  document.getElementById('ann-text').value='';
+  loadData();
+}
+async function changePassword() {
+  const p = document.getElementById('new-pass').value;
+  if (p.length < 4) return;
+  await fetch('/api/admin/password', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:`new_password=${encodeURIComponent(p)}`
+  });
+  document.getElementById('pw-msg').style.display='block';
+  setTimeout(()=>document.getElementById('pw-msg').style.display='none', 3000);
+}
+</script>
+</body>
+</html>

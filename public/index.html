@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerPulse ECU — Foglalás</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">Power<span class="logo-accent">Pulse</span></span>
+    </a>
+    <nav class="topbar-nav">
+      <a href="index.html" class="nav-link active">Foglalás</a>
+      <a href="wheel.html" class="nav-link" style="color:var(--accent)">🎰 Szerencsekerék</a>
+      <a href="admin.php" class="nav-link">Admin</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- HIRDETMÉNYEK (dinamikus, adminból) -->
+  <div id="announcements-wrap"></div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge reveal-scale">⚡ SeeCity · Profi ECU Tuning</div>
+    <h1 class="hero-title reveal">
+      Teljesítmény<br>
+      <span class="gradient-text">újradefiniálva</span>
+    </h1>
+    <p class="hero-sub reveal reveal-delay-1">
+      Profi ECU beállítás SeeCity városában — végsebesség, gyorsulás,<br>
+      egyedi igények szerint. Foglalj online, értesítünk Discordon!
+    </p>
+    <a href="#foglalas" class="hero-cta reveal reveal-delay-2">
+      Időpontot foglalok <span class="btn-arrow">↓</span>
+    </a>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-item reveal">
+      <span class="stat-num" data-count="60" data-suffix="+">0+</span>
+      <span class="stat-desc">Elégedett ügyfél</span>
+    </div>
+    <div class="stat-item reveal reveal-delay-1">
+      <span class="stat-num" data-count="100" data-suffix="%">0%</span>
+      <span class="stat-desc">Precíz beállítás</span>
+    </div>
+    <div class="stat-item reveal reveal-delay-2">
+      <span class="stat-num" data-static="24/7">24/7</span>
+      <span class="stat-desc">Online foglalás</span>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <section class="form-section" id="foglalas">
+    <div class="section-label reveal">
+      <h2>📋 Időpont foglalás</h2>
+      <span>Töltsd ki és felvesszük veled a kapcsolatot Discordon</span>
+    </div>
+
+    <!-- SMS SÁV -->
+    <div class="sms-bar reveal">
+      <span class="sms-icon">💬</span>
+      <span>Inkább SMS-ben érdeklődnél? Írj nekünk:</span>
+      <a href="sms:+38774782555" class="sms-number">+38-77-478-2555</a>
+    </div>
+
+    <div class="form-card reveal">
+
+      <div id="success-msg" class="success-msg">
+        <span class="success-icon">✅</span>
+        <div style="flex:1">
+          <strong>Foglalás elküldve!</strong>
+          <p>Hamarosan felvesszük veled a kapcsolatot Discordon. Köszönjük!</p>
+          <button onclick="newBooking()" class="new-booking-btn">+ Új foglalás (másik kocsihoz)</button>
+        </div>
+      </div>
+
+      <!-- ⚠️ FIGYELEMFELHÍVÓ -->
+      <div class="warning-box">
+        <div class="warning-icon">⚠️</div>
+        <div class="warning-content">
+          <strong>Fontos követelmények az ECU beállításhoz!</strong>
+          <ul>
+            <li>🔧 <b>Profi motorgenerátor</b> szükséges a kocsihoz — alap generátorral az ECU nem éri el a maximumot</li>
+            <li>⛽ <b>Racing üzemanyag</b> kötelező — normál benzinnel a beállítás nem lesz hatékony</li>
+          </ul>
+          <p class="warning-note">Ezen követelmények nélkül nem tudunk garanciát vállalni az eredményre!</p>
+        </div>
+      </div>
+
+      <form id="booking-form" action="/api/submit" method="POST">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>IC Név <span class="required">*</span></label>
+            <input type="text" name="ic_name" placeholder="pl. John Smith" required>
+          </div>
+          <div class="form-group">
+            <label>Discord felhasználó <span class="required">*</span></label>
+            <input type="text" name="discord" placeholder="pl. @johndoe" required>
+          </div>
+          <div class="form-group">
+            <label>IC Telefonszám <span class="required">*</span></label>
+            <input type="text" name="phone" placeholder="pl. 555-1234" required>
+          </div>
+          <div class="form-group">
+            <label>Kocsi kiválasztása <span class="required">*</span></label>
+            <select name="car" required class="car-select">
+              <option value="" disabled selected>— Válassz kocsit —</option>
+              <optgroup label="🚗 Bravon">
+                <option>Bravon BULL 1500 Limited</option>
+                <option>Bravon Cobra RS-T</option>
+                <option>Bravon Crown 440</option>
+                <option>Bravon Devil RS-T</option>
+                <option>Bravon Loader T</option>
+              </optgroup>
+              <optgroup label="🚗 Crod">
+                <option>Crod Attention RS</option>
+                <option>Crod C150</option>
+                <option>Crod C150 Behemoth</option>
+                <option>Crod C550 Towtruck</option>
+                <option>Crod Camper</option>
+                <option>Crod Mule GT</option>
+                <option>Crod Pick Up Custom</option>
+                <option>Crod Prey</option>
+                <option>Crod Silverhawk</option>
+                <option>Crod Thrifter</option>
+              </optgroup>
+              <optgroup label="🚗 Fioravanti">
+                <option>Fioravanti Tornado</option>
+              </optgroup>
+              <optgroup label="🚗 Gamma">
+                <option>Gamma Nero Vittoria</option>
+              </optgroup>
+              <optgroup label="🚗 Heisler">
+                <option>Heisler 315 Turbo</option>
+              </optgroup>
+              <optgroup label="🚗 Inductor">
+                <option>Inductor Make S</option>
+                <option>Inductor Make X</option>
+                <option>Inductor Make Y</option>
+              </optgroup>
+              <optgroup label="🚗 Ironhawk">
+                <option>Ironhawk Phoenix</option>
+              </optgroup>
+              <optgroup label="🚗 Kaizen">
+                <option>Kaizen Arashi 4</option>
+                <option>Kaizen Arashi 90</option>
+                <option>Kaizen Cavari 70</option>
+              </optgroup>
+              <optgroup label="🚗 Kurotai">
+                <option>Kurotai Raijin XRS TI</option>
+              </optgroup>
+              <optgroup label="🚗 Laerol">
+                <option>Laerol Sytta</option>
+              </optgroup>
+              <optgroup label="🚗 Landridge">
+                <option>Landridge City Car Limousine</option>
+                <option>Landridge City Coupe</option>
+              </optgroup>
+              <optgroup label="🚗 MacRaeven">
+                <option>MacRaeven S1</option>
+              </optgroup>
+              <optgroup label="🚗 Maibashi">
+                <option>Maibashi Yurei GTX</option>
+              </optgroup>
+              <optgroup label="🚗 Mauler">
+                <option>Mauler M2</option>
+              </optgroup>
+              <optgroup label="🚗 Millford">
+                <option>Millford Rebel Comet</option>
+              </optgroup>
+              <optgroup label="🚗 Moskar">
+                <option>Moskar 107</option>
+              </optgroup>
+              <optgroup label="🚗 Nakata">
+                <option>Nakata MZ-X UrT</option>
+                <option>Nakata Minji</option>
+              </optgroup>
+              <optgroup label="🚗 Oudin">
+                <option>Oudin 2T Sport Coupe</option>
+                <option>Oudin 40</option>
+                <option>Oudin F8 Sport</option>
+                <option>Oudin Fourway Sport</option>
+                <option>Oudin G7</option>
+                <option>Oudin O3</option>
+                <option>Oudin O4 Sport Combi</option>
+                <option>Oudin O6 Sport Combi</option>
+                <option>Oudin O8</option>
+              </optgroup>
+              <optgroup label="🚗 Oxtrail">
+                <option>Oxtrail Trekker</option>
+              </optgroup>
+              <optgroup label="🚗 Rockland">
+                <option>Rockland Conquer 8</option>
+                <option>Rockland Glen Rock</option>
+                <option>Rockland Goldline 1500</option>
+                <option>Rockland Impaler</option>
+                <option>Rockland Marco Z1</option>
+                <option>Rockland Michelle S</option>
+              </optgroup>
+              <optgroup label="🚗 Rosetti">
+                <option>Rosetti BC</option>
+              </optgroup>
+              <optgroup label="🚗 Sienna">
+                <option>Sienna 175Y</option>
+                <option>Sienna 480XS</option>
+                <option>Sienna T-RS</option>
+                <option>Sienna Tegami</option>
+                <option>Sienna Tengoku S25 T-RS</option>
+              </optgroup>
+              <optgroup label="🚗 Slavora">
+                <option>Slavora Octet</option>
+                <option>Slavora Octet RS Combi</option>
+              </optgroup>
+              <optgroup label="🚗 Steiner">
+                <option>Steiner 500 GW</option>
+                <option>Steiner 190 E2</option>
+                <option>Steiner 300</option>
+                <option>Steiner Grouppe-C 206</option>
+                <option>Steiner Grouppe-E 210</option>
+                <option>Steiner Gruppe-E 212 Combi</option>
+                <option>Steiner Gruppe-G 463</option>
+                <option>Steiner Gruppe-S 220</option>
+                <option>Steiner Kurier</option>
+                <option>Steiner S63</option>
+                <option>Steiner SMT Einz</option>
+                <option>Steiner SMT GT</option>
+              </optgroup>
+              <optgroup label="🚗 Valto / Valmorin">
+                <option>Valto Lince</option>
+                <option>Valmorin Elysion</option>
+              </optgroup>
+              <optgroup label="🚗 Walton">
+                <option>Walton</option>
+              </optgroup>
+              <optgroup label="🚗 Zivilfahr">
+                <option>Zivilfahr Austre</option>
+                <option>Zivilfahr Kafer</option>
+                <option>Zivilfahr Karavan</option>
+                <option>Zivilfahr Sirova</option>
+                <option>Zivilfahr Sturm S6</option>
+                <option>Zivilfahr Trion 1</option>
+                <option>Zivilfahr Trion 4</option>
+                <option>Zivilfahr Trion 5</option>
+                <option>Zivilfahr Trion 7</option>
+              </optgroup>
+              <optgroup label="🚗 Übermachen">
+                <option>Übermachen Galander 5</option>
+                <option>Übermachen S4 Konkurrenz</option>
+                <option>Übermachen S635 CSi e24</option>
+                <option>Übermachen S8 Konkurrenz</option>
+                <option>Übermachen Style 3 G20</option>
+                <option>Übermachen Style 3 e46</option>
+                <option>Übermachen Style 5 F11</option>
+                <option>Übermachen Style 5 e34</option>
+                <option>Übermachen Style 5 e60</option>
+                <option>Übermachen Style 7 e38</option>
+                <option>Übermachen Style 7 e65</option>
+              </optgroup>
+
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Elvárás <span class="required">*</span></label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="goal" value="vegsebbseg" required>
+              <span class="radio-box">
+                <span class="radio-icon">🏁</span>
+                <span class="radio-label">Végsebesség</span>
+                <span class="radio-desc">Maximális km/h</span>
+              </span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="goal" value="gyorsulas">
+              <span class="radio-box">
+                <span class="radio-icon">⚡</span>
+                <span class="radio-label">Gyorsulás</span>
+                <span class="radio-desc">0–100 idő</span>
+              </span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="goal" value="mindketto">
+              <span class="radio-box">
+                <span class="radio-icon">🔥</span>
+                <span class="radio-label">Mindkettő</span>
+                <span class="radio-desc">Teljes optimalizáció</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" id="notes-group" style="display:none">
+          <label>Extra kérések / megjegyzés <span class="required">*</span></label>
+          <textarea id="notes-field" name="notes" placeholder="pl. a végsebesség legyen max, de a gyorsulás se legyen rossz..." rows="4"></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          <span>Foglalás elküldése</span>
+          <span class="btn-arrow">→</span>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ÉRTÉKELÉSEK -->
+  <section class="reviews-section">
+    <h2 class="features-title reveal">Mit mondanak <span class="gradient-text">ügyfeleink</span>?</h2>
+
+    <!-- Dinamikus vélemények (jóváhagyottak) -->
+    <div class="reviews-grid" id="reviews-container">
+      <!-- Demo vélemények — amíg nincs jóváhagyott -->
+      <div class="review-card reveal">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Brutális lett az autóm, nem hittem volna hogy ennyit ki lehet hozni belőle. Profik, gyors munka!"</p>
+        <div class="review-author">
+          <div class="review-avatar">JD</div>
+          <div>
+            <div class="review-name">James D.</div>
+            <div class="review-car">Übermachen</div>
+          </div>
+        </div>
+      </div>
+      <div class="review-card reveal reveal-delay-1">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Most már nem tud senki utolérni. Gyorsulás és végsebesség is tökéletes, ajánlom mindenkinek!"</p>
+        <div class="review-author">
+          <div class="review-avatar">MR</div>
+          <div>
+            <div class="review-name">Marco R.</div>
+            <div class="review-car">Sienna</div>
+          </div>
+        </div>
+      </div>
+      <div class="review-card reveal reveal-delay-2">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Pontosan azt kaptam amit kértem, sőt még annál is többet. Elképesztő munka, köszönöm!"</p>
+        <div class="review-author">
+          <div class="review-avatar">AK</div>
+          <div>
+            <div class="review-name">Alex K.</div>
+            <div class="review-car">Kurotai</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VÉLEMÉNY ÍRÁSA -->
+    <div class="review-form-wrap reveal">
+      <h3 class="review-form-title">✍️ Írj te is véleményt!</h3>
+      <p class="review-form-sub">Véleményed jóváhagyás után jelenik meg az oldalon.</p>
+
+      <div id="review-sent-msg" class="success-msg" style="display:none;margin-bottom:20px">
+        <span class="success-icon">✅</span>
+        <div><strong>Köszönjük a véleményed!</strong><p>Jóváhagyás után megjelenik az oldalon.</p></div>
+      </div>
+
+      <form id="review-form" action="/api/review" method="POST" class="review-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>IC Neved <span class="required">*</span></label>
+            <input type="text" name="name" placeholder="pl. John Smith" required>
+          </div>
+          <div class="form-group">
+            <label>Kocsi (opcionális)</label>
+            <input type="text" name="car" placeholder="pl. Steiner, Sienna...">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Értékelés <span class="required">*</span></label>
+          <div class="star-picker">
+            <span class="star" data-val="1">★</span>
+            <span class="star" data-val="2">★</span>
+            <span class="star" data-val="3">★</span>
+            <span class="star" data-val="4">★</span>
+            <span class="star" data-val="5">★</span>
+            <input type="hidden" name="rating" id="rating-val" value="5">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Vélemény <span class="required">*</span></label>
+          <textarea name="text" placeholder="Írd le a tapasztalataidat..." rows="3" required minlength="10"></textarea>
+        </div>
+        <button type="submit" class="submit-btn" style="max-width:260px">
+          <span>Vélemény beküldése</span>
+          <span class="btn-arrow">→</span>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ÁRLISTA -->
+  <section class="pricing-section">
+    <h2 class="features-title reveal">Szolgáltatásaink <span class="gradient-text">árai</span></h2>
+    <div class="pricing-grid">
+
+      <div class="pricing-card reveal">
+        <div class="pricing-icon">🏁</div>
+        <div class="pricing-name">Végsebesség</div>
+        <div class="pricing-desc">Maximális km/h optimalizálás</div>
+        <div class="pricing-price">250.000$</div>
+        <ul class="pricing-features">
+          <li>✅ ECU végsebesség tuning</li>
+          <li>✅ Motor optimalizálás</li>
+          <li>✅ Teszt és beállítás</li>
+        </ul>
+        <a href="#foglalas" class="pricing-btn">Foglalok →</a>
+      </div>
+
+      <div class="pricing-card pricing-featured reveal reveal-delay-1">
+        <div class="pricing-badge">⭐ Legnépszerűbb</div>
+        <div class="pricing-icon">🔥</div>
+        <div class="pricing-name">Mindkettő</div>
+        <div class="pricing-desc">Teljes ECU optimalizáció</div>
+        <div class="pricing-price">350.000$</div>
+        <ul class="pricing-features">
+          <li>✅ Végsebesség tuning</li>
+          <li>✅ Gyorsulás tuning</li>
+          <li>✅ Teljes ECU beállítás</li>
+          <li>✅ Prioritás kezelés</li>
+        </ul>
+        <a href="#foglalas" class="pricing-btn">Foglalok →</a>
+      </div>
+
+      <div class="pricing-card reveal reveal-delay-2">
+        <div class="pricing-icon">⚡</div>
+        <div class="pricing-name">Gyorsulás</div>
+        <div class="pricing-desc">0–100 idő optimalizálás</div>
+        <div class="pricing-price">250.000$</div>
+        <ul class="pricing-features">
+          <li>✅ ECU gyorsulás tuning</li>
+          <li>✅ Átvitel optimalizálás</li>
+          <li>✅ Teszt és beállítás</li>
+        </ul>
+        <a href="#foglalas" class="pricing-btn">Foglalok →</a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features-section">
+    <h2 class="features-title reveal">Miért <span class="gradient-text">PowerPulse</span>?</h2>
+    <div class="features">
+      <div class="feature-card reveal">
+        <div class="feature-icon-wrap">⚡</div>
+        <h3>Profi ECU tuning</h3>
+        <p>Tapasztalt személyek, precíz beállítások minden kocsitípushoz</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon-wrap">🎯</div>
+        <h3>Egyedi igények</h3>
+        <p>Végsebesség, gyorsulás vagy mindkettő — te döntöd el</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon-wrap">💬</div>
+        <h3>Discord értesítés</h3>
+        <p>Azonnal értesítünk Discordon amikor foglalásod beérkezett</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>© 2026 <span>PowerPulse ECU</span> — SeeCity · Minden jog fenntartva. Az oldalon található tartalmak és szolgáltatások a PowerPulse ECU kizárólagos tulajdonát képezik.</p>
+</footer>
+
+<script>
+// ===== CANVAS =====
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+function Particle() {
+  this.x=Math.random()*W; this.y=Math.random()*H;
+  this.vx=(Math.random()-.5)*.4; this.vy=(Math.random()-.5)*.4;
+  this.r=Math.random()*2+.5; this.alpha=Math.random()*.5+.2;
+}
+function initParticles() {
+  particles=[];
+  const count=Math.floor(W*H/8000);
+  for(let i=0;i<count;i++) particles.push(new Particle());
+}
+function drawBg() {
+  const grad=ctx.createLinearGradient(0,0,W,H);
+  grad.addColorStop(0,'#0a0a1a'); grad.addColorStop(.4,'#0d0d20');
+  grad.addColorStop(.7,'#12091a'); grad.addColorStop(1,'#0a0a10');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  const g1=ctx.createRadialGradient(W*.1,H*.15,0,W*.1,H*.15,W*.45);
+  g1.addColorStop(0,'rgba(245,158,11,0.07)'); g1.addColorStop(1,'transparent');
+  ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  const g2=ctx.createRadialGradient(W*.85,H*.8,0,W*.85,H*.8,W*.4);
+  g2.addColorStop(0,'rgba(239,68,68,0.05)'); g2.addColorStop(1,'transparent');
+  ctx.fillStyle=g2; ctx.fillRect(0,0,W,H);
+}
+function animate() {
+  drawBg();
+  for(let i=0;i<particles.length;i++){
+    const p=particles[i];
+    for(let j=i+1;j<particles.length;j++){
+      const q=particles[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=`rgba(245,158,11,${.12*(1-d/120)})`;ctx.lineWidth=.5;ctx.stroke();}
+    }
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(245,158,11,${p.alpha})`;ctx.fill();
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+  }
+  requestAnimationFrame(animate);
+}
+window.addEventListener('resize',()=>{resize();initParticles();});
+resize();initParticles();animate();
+
+// ===== REVEAL =====
+const obs=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting)e.target.classList.add('visible');
+    else e.target.classList.remove('visible');
+  });
+},{threshold:0.12,rootMargin:'0px 0px -50px 0px'});
+document.querySelectorAll('.reveal,.reveal-scale,.reveal-left').forEach(el=>obs.observe(el));
+
+// ===== EXTRA KÉRÉS =====
+const radios=document.querySelectorAll('input[name="goal"]');
+const notesGroup=document.getElementById('notes-group');
+const notesField=document.getElementById('notes-field');
+radios.forEach(r=>{
+  r.addEventListener('change',()=>{
+    if(r.value==='mindketto'&&r.checked){notesGroup.style.display='block';notesField.required=true;}
+    else if(r.checked){notesGroup.style.display='none';notesField.required=false;notesField.value='';}
+  });
+});
+
+// ===== HANGJELZÉS =====
+function playSuccessSound(){
+  try{
+    const ac=new(window.AudioContext||window.webkitAudioContext)();
+    [523,659,784,1047].forEach((freq,i)=>{
+      const osc=ac.createOscillator(),gain=ac.createGain();
+      osc.connect(gain);gain.connect(ac.destination);
+      osc.frequency.value=freq;osc.type='sine';
+      const t=ac.currentTime+i*.12;
+      gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.3,t+.02);gain.gain.exponentialRampToValueAtTime(.001,t+.4);
+      osc.start(t);osc.stop(t+.4);
+    });
+  }catch(e){}
+}
+
+// ===== ANIMÁLT SZÁMLÁLÓ =====
+function animateCounter(el) {
+  if (el.dataset.animated) return;
+  el.dataset.animated = '1';
+  const target = parseInt(el.dataset.count);
+  const suffix = el.dataset.suffix || '';
+  const duration = 1500;
+  const start = performance.now();
+  function update(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.floor(ease * target) + suffix;
+    if (progress < 1) requestAnimationFrame(update);
+    else el.textContent = target + suffix;
+  }
+  requestAnimationFrame(update);
+}
+
+const counterObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting && e.target.dataset.count) {
+      animateCounter(e.target);
+    }
+  });
+}, { threshold: 0.5 });
+document.querySelectorAll('.stat-num[data-count]').forEach(el => counterObs.observe(el));
+
+// ===== HIRDETMÉNYEK =====
+fetch("/api/announcements").then(r=>r.json()).then(items=>{
+  const wrap = document.getElementById('announcements-wrap');
+  if(!items.length) return;
+  items.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'announcement-banner reveal-scale';
+    div.innerHTML = `<span style="font-size:22px;flex-shrink:0">${a.emoji||'📢'}</span>
+      <span style="flex:1">${a.text}</span>
+      <button onclick="this.parentElement.remove()" class="ann-close">✕</button>`;
+    wrap.appendChild(div);
+    setTimeout(()=>div.classList.add('visible'), 100);
+  });
+}).catch(()=>{});
+
+// ===== CSILLAG PICKER =====
+const stars = document.querySelectorAll('.star');
+const ratingVal = document.getElementById('rating-val');
+let currentRating = 5;
+function updateStars(val) {
+  stars.forEach((s,i) => {
+    s.classList.toggle('active', i < val);
+  });
+  ratingVal.value = val;
+  currentRating = val;
+}
+updateStars(5);
+stars.forEach((s,i) => {
+  s.addEventListener('mouseover', () => updateStars(i+1));
+  s.addEventListener('click', () => { currentRating = i+1; updateStars(i+1); });
+  s.addEventListener('mouseleave', () => updateStars(currentRating));
+});
+
+// ===== DINAMIKUS VÉLEMÉNYEK =====
+function loadApprovedReviews() {
+  fetch("/api/reviews").then(r=>r.json()).then(reviews => {
+    if (!reviews.length) return; // ha nincs jóváhagyott → demo marad
+    const container = document.getElementById('reviews-container');
+    container.innerHTML = '';
+    reviews.forEach((r, i) => {
+      const stars = '★'.repeat(r.rating) + '☆'.repeat(5-r.rating);
+      const initials = r.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+      const delay = i < 3 ? `reveal-delay-${i}` : '';
+      container.innerHTML += `
+        <div class="review-card reveal ${delay}">
+          <div class="review-stars">${stars}</div>
+          <p class="review-text">"${r.text}"</p>
+          <div class="review-author">
+            <div class="review-avatar">${initials}</div>
+            <div>
+              <div class="review-name">${r.name}</div>
+              ${r.car ? `<div class="review-car">${r.car}</div>` : ''}
+            </div>
+          </div>
+        </div>`;
+    });
+    // Re-observe új kártyák
+    container.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+  }).catch(()=>{});
+}
+loadApprovedReviews();
+
+// ===== LÁTOGATÓSZÁMLÁLÓ =====
+fetch("/api/track").catch(()=>{});
+
+if(window.location.search.includes('review_sent=1')){
+  document.getElementById('review-sent-msg').style.display='flex';
+  document.getElementById('review-form').style.display='none';
+}
+
+if(window.location.search.includes('success=1')){
+  document.getElementById('success-msg').classList.add('show');
+  document.getElementById('booking-form').style.display='none';
+  playSuccessSound();
+}
+
+function newBooking(){
+  document.getElementById('success-msg').classList.remove('show');
+  const form=document.getElementById('booking-form');
+  form.style.display='block';
+  form.reset();
+  notesGroup.style.display='none';
+  notesField.required=false;
+  window.history.replaceState({},document.title,window.location.pathname);
+  form.scrollIntoView({behavior:'smooth'});
+}
+</script>
+<!-- SZERENCSEKERÉK POPUP -->
+<div id="wheel-popup" style="display:none">
+  <div class="popup-overlay" onclick="closeWheelPopup()"></div>
+  <div class="popup-box">
+    <button class="popup-close" onclick="closeWheelPopup()">✕</button>
+    <div class="popup-emoji">🎰</div>
+    <h2 class="popup-title">Napi Szerencsekerék!</h2>
+    <p class="popup-desc">Ma még nem pörgettél! Próbáld ki a szerencsédet — nyerhetsz ingyenes ECU-t, profi szerelést, 10.000$-t és még sok mást!</p>
+    <a href="wheel.html" class="popup-btn">🎡 Pörgetem a kereket!</a>
+    <button class="popup-skip" onclick="closeWheelPopup()">Most nem, köszönöm</button>
+  </div>
+</div>
+
+<style>
+.popup-overlay {
+  position: fixed; inset: 0; z-index: 998;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
+}
+.popup-box {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%,-50%) scale(0.9);
+  z-index: 999;
+  background: linear-gradient(135deg, #12121e, #0d0d20);
+  border: 2px solid rgba(245,158,11,0.4);
+  border-radius: 24px;
+  padding: 44px 40px;
+  max-width: 420px; width: 90%;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(245,158,11,0.1);
+  animation: popIn 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes popIn  { from{transform:translate(-50%,-50%) scale(0.8);opacity:0} to{transform:translate(-50%,-50%) scale(1);opacity:1} }
+.popup-close {
+  position: absolute; top: 16px; right: 16px;
+  background: rgba(255,255,255,0.08); border: none;
+  color: var(--text-muted); width: 32px; height: 32px;
+  border-radius: 50%; cursor: pointer; font-size: 14px;
+  transition: all 0.2s;
+}
+.popup-close:hover { background: rgba(255,255,255,0.15); color: var(--text); }
+.popup-emoji { font-size: 56px; margin-bottom: 16px; animation: bounce 1s ease infinite alternate; }
+@keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-8px)} }
+.popup-title { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
+.popup-desc { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 28px; }
+.popup-btn {
+  display: block; width: 100%;
+  background: linear-gradient(135deg, var(--accent), #d97706);
+  color: #000; font-weight: 700; font-size: 16px;
+  padding: 15px 24px; border-radius: 12px;
+  text-decoration: none; margin-bottom: 12px;
+  transition: all 0.2s;
+  box-shadow: 0 6px 20px rgba(245,158,11,0.3);
+}
+.popup-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(245,158,11,0.45); }
+.popup-skip {
+  background: none; border: none; color: var(--text-muted);
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  text-decoration: underline; transition: color 0.2s;
+}
+.popup-skip:hover { color: var(--text); }
+</style>
+
+<script>
+function closeWheelPopup() {
+  document.getElementById('wheel-popup').style.display = 'none';
+}
+
+// Popup megjelenítése ha ma még nem pörgetett ÉS még nem zárta be
+setTimeout(() => {
+  const spunToday = localStorage.getItem('pp_spin_' + new Date().toISOString().split('T')[0]);
+  const closedToday = localStorage.getItem('pp_popup_' + new Date().toISOString().split('T')[0]);
+  if (!spunToday && !closedToday) {
+    document.getElementById('wheel-popup').style.display = 'block';
+    // Ha bezárja → ne jöjjön elő újra ma
+    document.getElementById('wheel-popup').querySelector('.popup-overlay').onclick = () => {
+      localStorage.setItem('pp_popup_' + new Date().toISOString().split('T')[0], '1');
+      closeWheelPopup();
+    };
+    document.getElementById('wheel-popup').querySelector('.popup-skip').onclick = () => {
+      localStorage.setItem('pp_popup_' + new Date().toISOString().split('T')[0], '1');
+      closeWheelPopup();
+    };
+  }
+}, 1500); // 1.5 másodperc után ugrik fel
+</script>
+</body>
+</html>
