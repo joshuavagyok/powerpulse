@@ -3,6 +3,69 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+
+// ===== GITHUB BACKUP =====
+const GH_TOKEN = process.env.GH_TOKEN || '';
+const GH_REPO = 'joshuavagyok/powerpulse';
+const GH_BRANCH = 'main';
+
+async function githubBackup(filename, content) {
+  if (!GH_TOKEN) return;
+  const filePath = `data/${filename}`;
+  const encoded = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
+
+  // Lekérjük a jelenlegi fájl SHA-ját
+  const getSha = () => new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: `/repos/${GH_REPO}/contents/${filePath}`,
+      method: 'GET',
+      headers: { 'Authorization': `token ${GH_TOKEN}`, 'User-Agent': 'PowerPulse', 'Accept': 'application/vnd.github.v3+json' }
+    }, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data).sha || null); }
+        catch { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+
+  const sha = await getSha();
+  const body = JSON.stringify({
+    message: `backup: ${filename} - ${new Date().toISOString()}`,
+    content: encoded,
+    branch: GH_BRANCH,
+    ...(sha ? { sha } : {})
+  });
+
+  const req = https.request({
+    hostname: 'api.github.com',
+    path: `/repos/${GH_REPO}/contents/${filePath}`,
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${GH_TOKEN}`,
+      'User-Agent': 'PowerPulse',
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body)
+    }
+  }, (res) => {
+    res.resume();
+    console.log(`GitHub backup: ${filename} → ${res.statusCode}`);
+  });
+  req.on('error', (e) => console.log(`GitHub backup hiba: ${e.message}`));
+  req.write(body);
+  req.end();
+}
+
+function writeAndBackup(filename, data) {
+  writeJSON(filename, data);
+  githubBackup(filename, data).catch(console.error);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,7 +113,7 @@ app.get('/api/track', (req, res) => {
   if (!req.session.visited) {
     req.session.visited = true;
     v.total++; v.today++;
-    writeJSON('visitors.json', v);
+    writeAndBackup('visitors.json', v);
   }
   res.json(v);
 });
@@ -75,7 +138,7 @@ app.post('/api/submit', (req, res) => {
   }
   const bookings = readJSON('bookings.json') || [];
   bookings.unshift({ id: uid(), ic_name, discord, phone, car, goal, notes: notes || '', status: 'new', created: now() });
-  writeJSON('bookings.json', bookings);
+  writeAndBackup('bookings.json', bookings);
   res.redirect('/?success=1');
 });
 
@@ -85,7 +148,7 @@ app.post('/api/review', (req, res) => {
   if (!name || !text || text.length < 5) return res.redirect('/?review_error=1');
   const reviews = readJSON('reviews.json') || [];
   reviews.push({ id: uid(), name, car: car || '', text, rating: parseInt(rating) || 5, status: 'pending', created: now() });
-  writeJSON('reviews.json', reviews);
+  writeAndBackup('reviews.json', reviews);
   res.redirect('/?review_sent=1');
 });
 
@@ -95,7 +158,7 @@ app.post('/api/prize', (req, res) => {
   if (!ic_name || !prize) return res.status(400).json({ error: 'missing' });
   const prizes = readJSON('prizes.json') || [];
   prizes.push({ id: uid(), ic_name, ic_phone: ic_phone || '', prize, prize_text: prize_text || '', status: 'pending', created: now() });
-  writeJSON('prizes.json', prizes);
+  writeAndBackup('prizes.json', prizes);
   res.json({ ok: true });
 });
 
@@ -134,10 +197,10 @@ app.post('/api/admin/booking/:id/:action', requireAdmin, (req, res) => {
   const bookings = readJSON('bookings.json') || [];
   const { id, action } = req.params;
   if (action === 'delete') {
-    writeJSON('bookings.json', bookings.filter(b => b.id !== id));
+    writeAndBackup('bookings.json', bookings.filter(b => b.id !== id));
   } else {
     bookings.forEach(b => { if (b.id === id) b.status = action; });
-    writeJSON('bookings.json', bookings);
+    writeAndBackup('bookings.json', bookings);
   }
   res.json({ ok: true });
 });
@@ -146,10 +209,10 @@ app.post('/api/admin/review/:id/:action', requireAdmin, (req, res) => {
   const reviews = readJSON('reviews.json') || [];
   const { id, action } = req.params;
   if (action === 'delete') {
-    writeJSON('reviews.json', reviews.filter(r => r.id !== id));
+    writeAndBackup('reviews.json', reviews.filter(r => r.id !== id));
   } else {
     reviews.forEach(r => { if (r.id === id) r.status = action; });
-    writeJSON('reviews.json', reviews);
+    writeAndBackup('reviews.json', reviews);
   }
   res.json({ ok: true });
 });
@@ -164,27 +227,27 @@ app.post('/api/admin/announcement', requireAdmin, (req, res) => {
     // Új
     if (text) items.unshift({ id: uid(), emoji: emoji || '📢', text, active: true, created: now() });
   }
-  writeJSON('announcements.json', items);
+  writeAndBackup('announcements.json', items);
   res.json({ ok: true });
 });
 
 app.post('/api/admin/announcement/:id/toggle', requireAdmin, (req, res) => {
   const items = readJSON('announcements.json') || [];
   items.forEach(a => { if (a.id === req.params.id) a.active = !a.active; });
-  writeJSON('announcements.json', items);
+  writeAndBackup('announcements.json', items);
   res.json({ ok: true });
 });
 
 app.delete('/api/admin/announcement/:id', requireAdmin, (req, res) => {
   const items = readJSON('announcements.json') || [];
-  writeJSON('announcements.json', items.filter(a => a.id !== req.params.id));
+  writeAndBackup('announcements.json', items.filter(a => a.id !== req.params.id));
   res.json({ ok: true });
 });
 
 app.post('/api/admin/prize/:id/done', requireAdmin, (req, res) => {
   const prizes = readJSON('prizes.json') || [];
   prizes.forEach(p => { if (p.id === req.params.id) p.status = 'done'; });
-  writeJSON('prizes.json', prizes);
+  writeAndBackup('prizes.json', prizes);
   res.json({ ok: true });
 });
 
@@ -198,3 +261,43 @@ app.post('/api/admin/password', requireAdmin, (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`PowerPulse fut: http://localhost:${PORT}`));
+
+// ===== STARTUP: Visszatöltés GitHub-ból =====
+async function restoreFromGithub(filename) {
+  if (!GH_TOKEN) return;
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: `/repos/${GH_REPO}/contents/data/${filename}`,
+      method: 'GET',
+      headers: { 'Authorization': `token ${GH_TOKEN}`, 'User-Agent': 'PowerPulse', 'Accept': 'application/vnd.github.v3+json' }
+    }, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.content) {
+            const content = Buffer.from(parsed.content, 'base64').toString('utf8');
+            fs.writeFileSync(path.join(DATA_DIR, filename), content);
+            console.log(`✅ Visszaállítva GitHub-ról: ${filename}`);
+          }
+        } catch(e) { console.log(`GitHub restore skip: ${filename}`); }
+        resolve();
+      });
+    });
+    req.on('error', () => resolve());
+    req.end();
+  });
+}
+
+// Induláskor visszatöltés
+(async () => {
+  console.log('🔄 GitHub backup visszatöltése...');
+  await restoreFromGithub('bookings.json');
+  await restoreFromGithub('reviews.json');
+  await restoreFromGithub('prizes.json');
+  await restoreFromGithub('announcements.json');
+  await restoreFromGithub('config.json');
+  console.log('✅ Visszatöltés kész!');
+})();
