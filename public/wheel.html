@@ -131,6 +131,29 @@
   <h1 class="wheel-title">Pörgesd meg a kereket!</h1>
   <p class="wheel-sub">Naponta egyszer pörgetheted — minden nap új esély vár rád!</p>
 
+  <!-- KÖTELEZŐ ADATOK PÖRGETÉS ELŐTT -->
+  <div class="pre-spin-form" id="pre-spin-form">
+    <div class="form-card" style="max-width:480px;margin:0 auto 28px;padding:28px 24px">
+      <div class="form-header" style="margin-bottom:20px">
+        <h2 style="font-size:17px">📋 Adatok megadása a pörgetéshez</h2>
+        <p style="color:var(--text-muted);font-size:13px">Minden mező kötelező!</p>
+      </div>
+      <div class="form-group">
+        <label>IC Név <span class="required">*</span></label>
+        <input type="text" id="pre-ic-name" placeholder="pl. John Smith" required>
+      </div>
+      <div class="form-group">
+        <label>Discord felhasználó <span class="required">*</span></label>
+        <input type="text" id="pre-discord" placeholder="pl. @johndoe" required>
+      </div>
+      <div class="form-group">
+        <label>IC Telefonszám <span class="required">*</span></label>
+        <input type="text" id="pre-phone" placeholder="pl. 555-1234" required>
+      </div>
+      <div id="pre-form-error" style="display:none;color:#ef4444;font-size:13px;margin-bottom:12px">⚠️ Minden mezőt ki kell tölteni!</div>
+    </div>
+  </div>
+
   <div class="wheel-wrap">
     <div class="wheel-pointer"></div>
     <canvas id="wheel-canvas" width="420" height="420"></canvas>
@@ -148,11 +171,21 @@
   </div>
 
   <div class="ic-form-wrap" id="ic-form-wrap">
-    <h3>🎁 Add meg az IC nevedet a nyeremény igényléséhez!</h3>
-    <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith)">
-    <input type="text" id="ic-phone-input" placeholder="IC telefonszám (pl. 555-1234)">
-    <br>
-    <button class="ic-claim-btn" onclick="claimPrize()">Igénylem a nyereményem →</button>
+    <h3>🎁 Nyereményed automatikusan rögzítve!</h3>
+    <p style="color:var(--text-muted);font-size:14px">Hamarosan felvesszük veled a kapcsolatot Discordon.</p>
+  </div>
+
+  <!-- ESÉLYEK -->
+  <div style="margin-top:40px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:480px;margin-left:auto;margin-right:auto">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">📊 Nyerési esélyek</h3>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span>❌ Semmi</span><span style="color:var(--text-muted)">45%</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span>🔄 Pörgess újra</span><span style="color:var(--text-muted)">43.5%</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span>🎰 Nyereményjáték</span><span style="color:#8b5cf6">5%</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span>🔧 Profi szerelés</span><span style="color:#3b82f6">3%</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span>💰 10.000$</span><span style="color:#22c55e">2%</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span>⚡ Ingyenes ECU</span><span style="color:var(--accent)">1.5%</span></div>
+    </div>
   </div>
 </div>
 
@@ -268,6 +301,17 @@ function getWinner() {
 
 function spin() {
   if (spinning || !canSpin()) return;
+
+  // Kötelező mezők ellenőrzése
+  const icName = document.getElementById('pre-ic-name').value.trim();
+  const discord = document.getElementById('pre-discord').value.trim();
+  const phone = document.getElementById('pre-phone').value.trim();
+  if (!icName || !discord || !phone) {
+    document.getElementById('pre-form-error').style.display = 'block';
+    document.getElementById('pre-ic-name').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  document.getElementById('pre-form-error').style.display = 'none';
   spinning = true;
   document.getElementById('spin-btn').disabled = true;
   document.getElementById('result-box').classList.remove('show');
@@ -335,7 +379,8 @@ function showResult(winner) {
     // Semmi: csak az eredmény box jelenik meg, form nem
     document.getElementById('ic-form-wrap').classList.remove('show');
   } else {
-    // Valódi nyeremény: form + konfetti
+    // Valódi nyeremény: automatikus mentés + konfetti
+    claimPrize();
     document.getElementById('ic-form-wrap').classList.add('show');
     confetti();
   }
@@ -344,23 +389,18 @@ function showResult(winner) {
 }
 
 function claimPrize() {
-  const name = document.getElementById('ic-name-input').value.trim();
-  const phone = document.getElementById('ic-phone-input').value.trim();
-  if (!name) { alert('Add meg az IC nevedet!'); return; }
+  // Az adatok már meg vannak adva pörgetés előtt
+  const name = document.getElementById('pre-ic-name').value.trim();
+  const discord = document.getElementById('pre-discord').value.trim();
+  const phone = document.getElementById('pre-phone').value.trim();
 
-  // Elküldjük a szerverre
   const form = new FormData();
   form.append('ic_name', name);
-  form.append('ic_phone', phone);
+  form.append('ic_phone', `${phone} | Discord: ${discord}`);
   form.append('prize', lastPrize);
   form.append('prize_text', document.getElementById('result-title').textContent);
 
-  fetch('/api/prize', { method: 'POST', body: form })
-    .then(() => {
-      document.getElementById('ic-form-wrap').innerHTML = '<p style="color:#22c55e;font-size:15px;padding:16px">✅ Nyereményed rögzítve! Hamarosan felvesszük veled a kapcsolatot.</p>';
-    }).catch(() => {
-      document.getElementById('ic-form-wrap').innerHTML = '<p style="color:#22c55e;font-size:15px;padding:16px">✅ Nyereményed rögzítve! Hamarosan felvesszük veled a kapcsolatot.</p>';
-    });
+  fetch('/api/prize', { method: 'POST', body: form }).catch(() => {});
 }
 
 function confetti() {

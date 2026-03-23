@@ -260,6 +260,30 @@ app.post('/api/admin/password', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// Spin timeout kezelés (szerver oldali)
+const spinTimeouts = {};
+
+app.post('/api/spin/register', (req, res) => {
+  const { ic_name } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+  spinTimeouts[`${ic_name}_${today}`] = true;
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/spin-timeouts', requireAdmin, (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const names = Object.keys(spinTimeouts)
+    .filter(k => k.endsWith(today))
+    .map(k => k.replace(`_${today}`, ''));
+  res.json(names);
+});
+
+app.post('/api/admin/spin-reset/:name', requireAdmin, (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  delete spinTimeouts[`${decodeURIComponent(req.params.name)}_${today}`];
+  res.json({ ok: true });
+});
+
 app.listen(PORT, () => console.log(`PowerPulse fut: http://localhost:${PORT}`));
 
 // ===== STARTUP: Visszatöltés GitHub-ból =====
