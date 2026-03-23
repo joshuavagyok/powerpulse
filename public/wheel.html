@@ -270,8 +270,21 @@ function spin() {
   if (spinning || !canSpin()) return;
   spinning = true;
   document.getElementById('spin-btn').disabled = true;
+  document.getElementById('spin-btn').textContent = '🎰 Pörgetés!';
+  // Reseteljük az eredményt
   document.getElementById('result-box').classList.remove('show');
   document.getElementById('ic-form-wrap').classList.remove('show');
+  document.getElementById('result-emoji').textContent = '';
+  document.getElementById('result-title').textContent = '';
+  document.getElementById('result-desc').textContent = '';
+  // IC form resetelése ha korábban már kitöltve volt
+  const icWrap = document.getElementById('ic-form-wrap');
+  if (!icWrap.querySelector('input')) {
+    icWrap.innerHTML = `<h3>🎁 Add meg az IC nevedet a nyeremény igényléséhez!</h3>
+      <input type="text" id="ic-name-input" placeholder="IC neved (pl. John Smith)">
+      <input type="text" id="ic-phone-input" placeholder="IC telefonszám (pl. 555-1234)">
+      <br><button class="ic-claim-btn" onclick="claimPrize()">Igénylem a nyereményem →</button>`;
+  }
 
   const winner = getWinner();
   // Kiszámoljuk hol kell megállni — egyforma vizuális szegmensek alapján!
