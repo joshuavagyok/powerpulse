@@ -725,3 +725,79 @@ body {
   border-radius: 10px; padding: 12px 20px;
   color: #22c55e; font-size: 14px; margin-bottom: 20px;
 }
+
+/* ===== MOBIL OPTIMALIZÁCIÓ ===== */
+@media (max-width: 768px) {
+  /* Topbar */
+  .topbar-inner { padding: 0 16px; }
+  .logo-text { font-size: 15px; }
+  .nav-link { padding: 6px 10px; font-size: 12px; }
+
+  /* Main */
+  .main { padding: 40px 16px 60px; }
+
+  /* Hero */
+  .hero { margin-bottom: 40px; }
+  .hero-title { font-size: 2.2rem; letter-spacing: -1.5px; }
+  .hero-sub { font-size: 14px; }
+  .hero-sub br { display: none; }
+  .hero-cta { padding: 13px 24px; font-size: 14px; }
+
+  /* Stats */
+  .stats-row { grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 40px; }
+  .stat-num { font-size: 22px; }
+  .stat-desc { font-size: 11px; }
+
+  /* Form */
+  .form-card { padding: 24px 18px; }
+  .form-grid { grid-template-columns: 1fr; gap: 0; }
+  .section-label { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .section-label h2 { font-size: 18px; }
+
+  /* Radio */
+  .radio-group { grid-template-columns: 1fr; gap: 8px; }
+  .radio-box { flex-direction: row; justify-content: flex-start; padding: 14px 16px; gap: 14px; text-align: left; }
+  .radio-desc { display: none; }
+
+  /* Submit gomb */
+  .submit-btn { font-size: 15px; padding: 15px; }
+
+  /* SMS sáv */
+  .sms-bar { flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 16px; }
+
+  /* Árlista */
+  .pricing-grid { grid-template-columns: 1fr; gap: 16px; }
+  .pricing-featured { transform: none; }
+  .pricing-featured:hover { transform: translateY(-4px); }
+
+  /* Features */
+  .features { grid-template-columns: 1fr; gap: 12px; }
+  .feature-card { padding: 22px 18px; text-align: left; display: flex; align-items: flex-start; gap: 16px; }
+  .feature-icon-wrap { width: 48px; height: 48px; flex-shrink: 0; margin: 0; font-size: 22px; }
+
+  /* Reviews */
+  .reviews-grid { grid-template-columns: 1fr; gap: 14px; }
+  .review-form-wrap { padding: 20px 16px; }
+
+  /* Popup */
+  .popup-box { padding: 32px 24px; }
+  .popup-title { font-size: 20px; }
+
+  /* Hirdetmény */
+  .announcement-banner { padding: 14px 16px; font-size: 13px; }
+
+  /* Footer */
+  .footer { padding: 20px 16px; font-size: 12px; }
+
+  /* Admin */
+  .admin-main { padding: 24px 16px; }
+  .admin-stats { grid-template-columns: repeat(2,1fr) !important; }
+  .table-wrap { overflow-x: auto; }
+  .bookings-table { min-width: 600px; }
+}
+
+@media (max-width: 400px) {
+  .hero-title { font-size: 1.9rem; }
+  .stats-row { grid-template-columns: 1fr; }
+  .hero-badge { font-size: 11px; padding: 6px 14px; }
+}
