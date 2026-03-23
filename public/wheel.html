@@ -251,7 +251,8 @@ function canSpin() {
 }
 
 function markSpun() {
-  if (!pendingRespin) localStorage.setItem(getStorageKey(), '1');
+  // MINDIG mentjük hogy ma már pörgetett — akár respin volt, akár nem!
+  localStorage.setItem(getStorageKey(), '1');
   pendingRespin = false;
 }
 
@@ -326,12 +327,17 @@ function showResult(winner) {
   lastPrize = winner.prize;
 
   if (winner.prize === 'respin') {
+    // Respin: engedélyezzük az újrapörgetést DE csak egyszer!
     pendingRespin = true;
     document.getElementById('spin-btn').disabled = false;
     document.getElementById('spin-btn').textContent = '🔄 Pörgess újra!';
-  } else if (msg.special && winner.prize !== 'nothing') {
+  } else if (winner.prize === 'nothing') {
+    // Semmi: csak az eredmény box jelenik meg, form nem
+    document.getElementById('ic-form-wrap').classList.remove('show');
+  } else {
+    // Valódi nyeremény: form + konfetti
     document.getElementById('ic-form-wrap').classList.add('show');
-    if (winner.prize !== 'nothing' && winner.prize !== 'respin') confetti();
+    confetti();
   }
 
   updateTimer();
