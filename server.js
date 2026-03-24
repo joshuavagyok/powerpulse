@@ -12,7 +12,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTM
 const GMAIL_USER = process.env.GMAIL_USER || 'powerpulse.ecu@gmail.com';
 const GMAIL_PASS = process.env.GMAIL_PASS || 'ntxd rydu pycu bmca';
 const BREVO_USER = process.env.BREVO_USER || 'a5e3f1001@smtp-brevo.com';
-const BREVO_KEY = process.env.BREVO_KEY || 'xkeysib-placeholder';
+const BREVO_KEY = process.env.BREVO_KEY || process.env.BK || '';
 const BASE_URL = process.env.BASE_URL || 'https://powerpulse-thhr.onrender.com';
 
 let db;
