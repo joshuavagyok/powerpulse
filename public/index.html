@@ -11,37 +11,53 @@
 #maintenance-overlay {
   position: fixed;
   inset: 0;
-  background: #0a0a1a;
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
-  text-align: center;
   padding: 24px;
   font-family: 'Space Grotesk', sans-serif;
+  pointer-events: all;
 }
-#maintenance-overlay canvas {
+#maintenance-overlay::before {
+  content: '';
   position: absolute;
   inset: 0;
+  background: rgba(5, 5, 20, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 0;
+}
+body.maintenance-mode {
+  overflow: hidden;
+}
+body.maintenance-mode *:not(#maintenance-overlay):not(#maintenance-overlay *) {
+  pointer-events: none !important;
+  user-select: none !important;
 }
 .maintenance-box {
   position: relative;
   z-index: 1;
-  background: rgba(15,15,35,0.85);
-  border: 1px solid #f59e0b;
-  border-radius: 20px;
+  background: rgba(12, 12, 30, 0.95);
+  border: 1.5px solid #f59e0b;
+  border-radius: 24px;
   padding: 48px 40px;
-  max-width: 540px;
+  max-width: 520px;
   width: 100%;
-  box-shadow: 0 0 60px rgba(245,158,11,0.15);
+  box-shadow: 0 0 80px rgba(245,158,11,0.2), 0 0 0 1px rgba(245,158,11,0.05);
+  text-align: center;
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
 .maintenance-box .gear {
   font-size: 4rem;
   animation: spin 4s linear infinite;
   display: block;
   margin-bottom: 16px;
+  filter: drop-shadow(0 0 12px rgba(245,158,11,0.5));
 }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .maintenance-box h1 {
@@ -49,39 +65,41 @@
   font-size: 2rem;
   margin: 0 0 12px;
   font-weight: 700;
+  text-shadow: 0 0 20px rgba(245,158,11,0.3);
 }
 .maintenance-box p {
-  color: #c0c0d0;
+  color: #b0b0c8;
   font-size: 1.05rem;
-  line-height: 1.6;
-  margin: 0 0 20px;
+  line-height: 1.7;
+  margin: 0 0 24px;
 }
 .maintenance-box .notice {
-  background: rgba(245,158,11,0.1);
-  border: 1px solid rgba(245,158,11,0.3);
-  border-radius: 10px;
-  padding: 14px 18px;
-  color: #f59e0b;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.35);
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: #f5c842;
   font-size: 0.95rem;
   font-weight: 500;
+  line-height: 1.6;
 }
 .maintenance-box .logo {
-  font-size: 1.1rem;
-  color: #555580;
+  font-size: 1rem;
+  color: #44446a;
   margin-top: 28px;
   font-weight: 600;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
 }
 </style>
 </head>
 <body>
 
 <div id="maintenance-overlay">
-  <canvas id="maint-canvas"></canvas>
   <div class="maintenance-box">
     <span class="gear">⚙️</span>
     <h1>Fejlesztés alatt</h1>
-    <p>Az oldal jelenleg karbantartás és fejlesztés alatt áll.<br>Hamarosan visszatérünk!</p>
+    <p>Az oldal jelenleg karbantartás és fejlesztés alatt áll.<br>Hamarosan visszatérünk egy még jobb verzióval!</p>
     <div class="notice">
       🎰 A folyamatban lévő <strong>Nyereményjátékot</strong> garantáltan meghosszabbítjuk a leállás idejével — senki nem marad le semmiről!
     </div>
@@ -90,24 +108,7 @@
 </div>
 
 <script>
-// Particle háttér a maintenance oldalon
-const mc = document.getElementById('maint-canvas');
-const ctx = mc.getContext('2d');
-mc.width = window.innerWidth; mc.height = window.innerHeight;
-window.addEventListener('resize', () => { mc.width = window.innerWidth; mc.height = window.innerHeight; });
-const pts = Array.from({length:60},()=>({x:Math.random()*mc.width,y:Math.random()*mc.height,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*2+1}));
-function drawMaint(){
-  ctx.clearRect(0,0,mc.width,mc.height);
-  pts.forEach(p=>{
-    p.x+=p.vx; p.y+=p.vy;
-    if(p.x<0||p.x>mc.width)p.vx*=-1;
-    if(p.y<0||p.y>mc.height)p.vy*=-1;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fillStyle='rgba(245,158,11,0.4)'; ctx.fill();
-  });
-  requestAnimationFrame(drawMaint);
-}
-drawMaint();
+document.body.classList.add('maintenance-mode');
 </script>
 
 <canvas id="bg-canvas"></canvas>

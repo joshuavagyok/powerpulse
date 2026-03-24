@@ -5,14 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PowerPulse — Fejlesztés alatt</title>
 <style>
-#maintenance-overlay{position:fixed;inset:0;background:#0a0a1a;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px;font-family:'Space Grotesk',sans-serif;}
-.maintenance-box{background:rgba(15,15,35,0.85);border:1px solid #f59e0b;border-radius:20px;padding:48px 40px;max-width:540px;width:100%;box-shadow:0 0 60px rgba(245,158,11,0.15);}
-.maintenance-box .gear{font-size:4rem;animation:spin 4s linear infinite;display:block;margin-bottom:16px;}
+#maintenance-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;font-family:'Space Grotesk',sans-serif;pointer-events:all;}
+#maintenance-overlay::before{content:'';position:absolute;inset:0;background:rgba(5,5,20,0.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:0;}
+body.maintenance-mode{overflow:hidden;}
+body.maintenance-mode *:not(#maintenance-overlay):not(#maintenance-overlay *){pointer-events:none!important;user-select:none!important;}
+.maintenance-box{position:relative;z-index:1;background:rgba(12,12,30,0.95);border:1.5px solid #f59e0b;border-radius:24px;padding:48px 40px;max-width:520px;width:100%;box-shadow:0 0 80px rgba(245,158,11,0.2);text-align:center;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275);}
+@keyframes popIn{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}
+.maintenance-box .gear{font-size:4rem;animation:spin 4s linear infinite;display:block;margin-bottom:16px;filter:drop-shadow(0 0 12px rgba(245,158,11,0.5));}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .maintenance-box h1{color:#f59e0b;font-size:2rem;margin:0 0 12px;font-weight:700;}
-.maintenance-box p{color:#c0c0d0;font-size:1.05rem;line-height:1.6;margin:0 0 20px;}
-.maintenance-box .notice{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px 18px;color:#f59e0b;font-size:0.95rem;font-weight:500;}
-.maintenance-box .logo{font-size:1.1rem;color:#555580;margin-top:28px;font-weight:600;letter-spacing:1px;}
+.maintenance-box p{color:#b0b0c8;font-size:1.05rem;line-height:1.7;margin:0 0 24px;}
+.maintenance-box .notice{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.35);border-radius:12px;padding:16px 20px;color:#f5c842;font-size:0.95rem;font-weight:500;line-height:1.6;}
+.maintenance-box .logo{font-size:1rem;color:#44446a;margin-top:28px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -124,11 +128,12 @@
   <div class="maintenance-box">
     <span class="gear">⚙️</span>
     <h1>Fejlesztés alatt</h1>
-    <p>Az oldal jelenleg karbantartás és fejlesztés alatt áll.<br>Hamarosan visszatérünk!</p>
-    <div class="notice">🎰 A folyamatban lévő <strong>Nyereményjátékot</strong> garantáltan meghosszabbítjuk a leállás idejével!</div>
+    <p>Az oldal jelenleg karbantartás és fejlesztés alatt áll.<br>Hamarosan visszatérünk egy még jobb verzióval!</p>
+    <div class="notice">🎰 A folyamatban lévő <strong>Nyereményjátékot</strong> garantáltan meghosszabbítjuk a leállás idejével — senki nem marad le semmiről!</div>
     <div class="logo">⚡ PowerPulse ECU — SeeCity</div>
   </div>
 </div>
+<script>document.body.classList.add('maintenance-mode');</script>
 <canvas id="bg-canvas"></canvas>
 
 <header class="topbar">
