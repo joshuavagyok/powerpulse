@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerPulse ECU — Profilom</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a1a; font-family:'Space Grotesk',sans-serif; min-height:100vh; color:#fff; }
+canvas { position:fixed; inset:0; z-index:0; }
+nav { position:relative; z-index:10; background:rgba(10,10,26,0.95); border-bottom:1px solid rgba(245,158,11,0.2); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; }
+.nav-logo { color:#f59e0b; font-weight:700; font-size:1.1rem; text-decoration:none; }
+.nav-links { display:flex; gap:16px; align-items:center; }
+.nav-links a { color:#888; text-decoration:none; font-size:0.9rem; transition:.2s; }
+.nav-links a:hover { color:#f59e0b; }
+.nav-user { color:#f59e0b; font-weight:600; font-size:0.9rem; }
+.main { position:relative; z-index:1; max-width:900px; margin:0 auto; padding:40px 20px; }
+.page-title { font-size:1.8rem; font-weight:700; margin-bottom:32px; }
+.page-title span { color:#f59e0b; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+@media(max-width:700px) { .grid { grid-template-columns:1fr; } }
+.card { background:rgba(12,12,30,0.95); border:1.5px solid rgba(245,158,11,0.2); border-radius:16px; padding:28px; }
+.card h3 { color:#f59e0b; font-size:1rem; font-weight:700; margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+.info-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.9rem; }
+.info-row:last-child { border-bottom:none; }
+.info-label { color:#888; }
+.info-value { color:#fff; font-weight:500; }
+.form-group { margin-bottom:14px; }
+label { display:block; color:#888; font-size:0.82rem; margin-bottom:5px; }
+input { width:100%; padding:10px 14px; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff; font-family:'Space Grotesk',sans-serif; font-size:0.9rem; }
+input:focus { outline:none; border-color:#f59e0b; }
+.btn { padding:10px 20px; background:#f59e0b; color:#0a0a1a; border:none; border-radius:8px; font-family:'Space Grotesk',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer; transition:.2s; }
+.btn:hover { background:#fbbf24; }
+.btn-sm { padding:6px 14px; font-size:0.8rem; }
+.msg { padding:10px 14px; border-radius:8px; font-size:0.85rem; margin-bottom:12px; display:none; }
+.msg.error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; display:block; }
+.msg.success { background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#4ade80; display:block; }
+.booking-item { padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.06); }
+.booking-item:last-child { margin-bottom:0; }
+.booking-car { font-weight:600; font-size:0.9rem; }
+.booking-goal { color:#888; font-size:0.82rem; margin-top:2px; }
+.booking-meta { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+.status { padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; }
+.status.new { background:rgba(245,158,11,0.15); color:#f59e0b; }
+.status.accepted { background:rgba(34,197,94,0.15); color:#4ade80; }
+.status.rejected { background:rgba(239,68,68,0.15); color:#f87171; }
+.status.in_progress { background:rgba(99,102,241,0.15); color:#a5b4fc; }
+.spin-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.88rem; }
+.spin-item:last-child { border-bottom:none; }
+.empty { color:#555; font-size:0.9rem; text-align:center; padding:20px 0; }
+.leaderboard-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.leaderboard-row:last-child { border-bottom:none; }
+.lb-rank { color:#f59e0b; font-weight:700; width:24px; }
+.lb-name { flex:1; font-size:0.9rem; }
+.lb-count { color:#888; font-size:0.85rem; }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<nav>
+  <a href="/" class="nav-logo">⚡ PowerPulse ECU</a>
+  <div class="nav-links">
+    <span class="nav-user" id="nav-username">...</span>
+    <a href="/api/user/logout">Kijelentkezés</a>
+  </div>
+</nav>
+
+<div class="main">
+  <h1 class="page-title">👤 <span>Profilom</span></h1>
+
+  <div class="grid">
+    <!-- Adataim -->
+    <div class="card">
+      <h3>📋 Adataim</h3>
+      <div id="profile-info">
+        <div class="info-row"><span class="info-label">IC Név</span><span class="info-value" id="p-ic">—</span></div>
+        <div class="info-row"><span class="info-label">Discord</span><span class="info-value" id="p-discord">—</span></div>
+        <div class="info-row"><span class="info-label">Email</span><span class="info-value" id="p-email">—</span></div>
+        <div class="info-row"><span class="info-label">Regisztráció</span><span class="info-value" id="p-created">—</span></div>
+        <div class="info-row"><span class="info-label">Utolsó pörgetés</span><span class="info-value" id="p-spin">—</span></div>
+      </div>
+    </div>
+
+    <!-- Szerkesztés -->
+    <div class="card">
+      <h3>✏️ Szerkesztés</h3>
+      <div id="edit-msg" class="msg"></div>
+      <div class="form-group">
+        <label>Discord felhasználónév</label>
+        <input type="text" id="edit-discord" placeholder="Új Discord név">
+      </div>
+      <div class="form-group">
+        <label>Jelenlegi jelszó</label>
+        <input type="password" id="edit-current-pass" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Új jelszó</label>
+        <input type="password" id="edit-new-pass" placeholder="••••••••">
+      </div>
+      <button class="btn" onclick="saveProfile()">Mentés</button>
+    </div>
+
+    <!-- Saját foglalások -->
+    <div class="card">
+      <h3>🔧 Foglalásaim</h3>
+      <div id="bookings-list"><div class="empty">Betöltés...</div></div>
+    </div>
+
+    <!-- Kerék history -->
+    <div class="card">
+      <h3>🎰 Pörgetéseim</h3>
+      <div id="spins-list"><div class="empty">Betöltés...</div></div>
+    </div>
+  </div>
+
+  <!-- Rangsor -->
+  <div class="card" style="margin-top:24px;">
+    <h3>🏆 Rangsor — Leghűségesebb ügyfelek</h3>
+    <div id="leaderboard-list"><div class="empty">Betöltés...</div></div>
+  </div>
+</div>
+
+<script>
+// Particle háttér
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+const pts = Array.from({length:40},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*2+1}));
+function draw(){ ctx.clearRect(0,0,canvas.width,canvas.height); pts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; if(p.x<0||p.x>canvas.width)p.vx*=-1; if(p.y<0||p.y>canvas.height)p.vy*=-1; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle='rgba(245,158,11,0.2)'; ctx.fill(); }); requestAnimationFrame(draw); }
+draw();
+
+const statusMap = { new: 'Új', accepted: 'Elfogadva', rejected: 'Elutasítva', in_progress: 'Folyamatban' };
+
+async function loadAll() {
+  // Profil
+  const me = await fetch('/api/user/me').then(r => r.json());
+  if (me.error) { window.location.href = '/login.html'; return; }
+  document.getElementById('nav-username').textContent = me.ic_name;
+  document.getElementById('p-ic').textContent = me.ic_name;
+  document.getElementById('p-discord').textContent = me.discord;
+  document.getElementById('p-email').textContent = me.email;
+  document.getElementById('p-created').textContent = me.created || '—';
+  document.getElementById('p-spin').textContent = me.lastSpin ? new Date(me.lastSpin).toLocaleString('hu-HU') : 'Még nem pörgetett';
+  document.getElementById('edit-discord').value = me.discord;
+
+  // Foglalások
+  const bookings = await fetch('/api/user/bookings').then(r => r.json());
+  const bEl = document.getElementById('bookings-list');
+  if (!bookings.length) { bEl.innerHTML = '<div class="empty">Még nincs foglalásod</div>'; }
+  else { bEl.innerHTML = bookings.map(b => `
+    <div class="booking-item">
+      <div class="booking-car">${b.car}</div>
+      <div class="booking-goal">${b.goal}</div>
+      <div class="booking-meta">
+        <span class="status ${b.status}">${statusMap[b.status] || b.status}</span>
+        <span style="color:#555;font-size:0.78rem;">${b.created}</span>
+      </div>
+    </div>`).join(''); }
+
+  // Pörgetések
+  const spins = await fetch('/api/user/spins').then(r => r.json());
+  const sEl = document.getElementById('spins-list');
+  if (!spins.length) { sEl.innerHTML = '<div class="empty">Még nem pörgetett</div>'; }
+  else { sEl.innerHTML = spins.map(s => `
+    <div class="spin-item">
+      <span>${s.prize_text || s.prize}</span>
+      <span style="color:#555">${s.created}</span>
+    </div>`).join(''); }
+
+  // Rangsor
+  const lb = await fetch('/api/leaderboard').then(r => r.json());
+  const lEl = document.getElementById('leaderboard-list');
+  const medals = ['🥇','🥈','🥉'];
+  if (!lb.length) { lEl.innerHTML = '<div class="empty">Még nincs adat</div>'; }
+  else { lEl.innerHTML = lb.map((u,i) => `
+    <div class="leaderboard-row">
+      <span class="lb-rank">${medals[i] || (i+1)+'.'}</span>
+      <span class="lb-name">${u.ic_name}</span>
+      <span class="lb-count">${u.count} foglalás</span>
+    </div>`).join(''); }
+}
+
+async function saveProfile() {
+  const discord = document.getElementById('edit-discord').value.trim();
+  const currentPassword = document.getElementById('edit-current-pass').value;
+  const newPassword = document.getElementById('edit-new-pass').value;
+  const msgEl = document.getElementById('edit-msg');
+  msgEl.className = 'msg';
+
+  const res = await fetch('/api/user/update', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `discord=${encodeURIComponent(discord)}&currentPassword=${encodeURIComponent(currentPassword)}&newPassword=${encodeURIComponent(newPassword)}`
+  });
+  const data = await res.json();
+  if (data.ok) {
+    msgEl.textContent = '✅ Sikeresen mentve!';
+    msgEl.className = 'msg success';
+    document.getElementById('edit-current-pass').value = '';
+    document.getElementById('edit-new-pass').value = '';
+  } else {
+    msgEl.textContent = '❌ ' + data.error;
+    msgEl.className = 'msg error';
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>

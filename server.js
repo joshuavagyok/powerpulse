@@ -204,6 +204,52 @@ app.get('/api/user/me', requireUser, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Profil szerkesztés
+app.post('/api/user/update', requireUser, async (req, res) => {
+  try {
+    const { discord, newPassword, currentPassword } = req.body;
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    if (!user) return res.status(404).json({ error: 'not found' });
+    const update = {};
+    if (discord) update.discord = discord;
+    if (newPassword && currentPassword) {
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) return res.json({ error: 'Hibás jelenlegi jelszó!' });
+      if (newPassword.length < 6) return res.json({ error: 'Az új jelszó legalább 6 karakter legyen!' });
+      update.password = await bcrypt.hash(newPassword, 10);
+    }
+    await db.collection('users').updateOne({ id: req.session.userId }, { $set: update });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Saját foglalások
+app.get('/api/user/bookings', requireUser, async (req, res) => {
+  try {
+    const bookings = await db.collection('bookings').find({ userId: req.session.userId }).sort({ created: -1 }).toArray();
+    res.json(bookings);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Kerék history
+app.get('/api/user/spins', requireUser, async (req, res) => {
+  try {
+    const spins = await db.collection('prizes').find({ userId: req.session.userId }).sort({ created: -1 }).toArray();
+    res.json(spins);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Rangsor — legtöbbet foglalók
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const bookings = await db.collection('bookings').find({ status: { $ne: 'rejected' } }).toArray();
+    const counts = {};
+    bookings.forEach(b => { if (b.ic_name) counts[b.ic_name] = (counts[b.ic_name] || 0) + 1; });
+    const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,10).map(([ic_name, count]) => ({ ic_name, count }));
+    res.json(sorted);
+  } catch(e) { res.json([]); }
+});
+
 // ===== VISITOR TRACKING =====
 app.get('/api/track', async (req, res) => {
   try {
@@ -288,7 +334,8 @@ app.post('/api/prize', async (req, res) => {
 
     await db.collection('prizes').insertOne({
       id: uid(), ic_name, ic_phone: ic_phone || '', prize,
-      prize_text: prize_text || '', status: 'pending', created: now()
+      prize_text: prize_text || '', status: 'pending', created: now(),
+      userId: req.session.userId || null
     });
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -342,8 +389,49 @@ app.get('/api/admin/data', requireAdmin, async (req, res) => {
 app.post('/api/admin/booking/:id/:action', requireAdmin, async (req, res) => {
   try {
     const { id, action } = req.params;
-    if (action === 'delete') await db.collection('bookings').deleteOne({ id });
-    else await db.collection('bookings').updateOne({ id }, { $set: { status: action } });
+    if (action === 'delete') {
+      await db.collection('bookings').deleteOne({ id });
+    } else {
+      await db.collection('bookings').updateOne({ id }, { $set: { status: action } });
+      // Email értesítés a usernek ha van email
+      const booking = await db.collection('bookings').findOne({ id });
+      if (booking && booking.userId) {
+        const user = await db.collection('users').findOne({ id: booking.userId });
+        if (user && user.email) {
+          const statusText = action === 'accepted' ? '✅ Elfogadva' : action === 'rejected' ? '❌ Elutasítva' : '🔄 Folyamatban';
+          const statusMsg = action === 'accepted'
+            ? 'A foglalásod elfogadtuk! Hamarosan felvesszük veled a kapcsolatot.'
+            : action === 'rejected'
+            ? 'Sajnos a foglalásod elutasításra került. Kérjük vedd fel velünk a kapcsolatot Discordon.'
+            : 'A foglalásod feldolgozás alatt van.';
+          sendEmail(user.email, `⚡ PowerPulse — Foglalás státusz: ${statusText}`, `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="500" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;max-width:500px;width:100%;">
+        <tr><td style="background:#0a0a1a;padding:32px 40px;text-align:center;">
+          <h1 style="color:#f59e0b;margin:0;font-size:28px;">⚡ PowerPulse ECU</h1>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <p style="color:#333;font-size:16px;">Szia <strong>${user.ic_name}</strong>!</p>
+          <p style="color:#555;font-size:15px;">Foglalásod státusza megváltozott:</p>
+          <div style="background:#f9f9f9;border-left:4px solid #f59e0b;padding:16px;border-radius:4px;margin:24px 0;">
+            <p style="margin:0;font-size:18px;font-weight:700;">${statusText}</p>
+            <p style="margin:8px 0 0;color:#666;">${statusMsg}</p>
+          </div>
+          <p style="color:#999;font-size:13px;">Foglalás: <strong>${booking.car}</strong> — ${booking.goal}</p>
+        </td></tr>
+        <tr><td style="background:#f9f9f9;padding:20px 40px;text-align:center;border-top:1px solid #eee;">
+          <p style="color:#aaa;font-size:12px;margin:0;">⚡ PowerPulse ECU — SeeCity · 2026</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`).catch(e => console.log('Email hiba:', e.message));
+        }
+      }
+    }
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -420,6 +508,37 @@ app.post('/api/admin/user/:id/ban', requireAdmin, async (req, res) => {
 app.post('/api/admin/user/:id/spin-reset', requireAdmin, async (req, res) => {
   try {
     await db.collection('users').updateOne({ id: req.params.id }, { $set: { lastSpin: null } });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin → User egyedi email
+app.post('/api/admin/user/:id/email', requireAdmin, async (req, res) => {
+  try {
+    const { subject, message } = req.body;
+    if (!subject || !message) return res.json({ error: 'Tárgy és üzenet kötelező!' });
+    const user = await db.collection('users').findOne({ id: req.params.id });
+    if (!user) return res.json({ error: 'User nem található!' });
+    await sendEmail(user.email, `⚡ PowerPulse — ${subject}`, `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="500" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;max-width:500px;width:100%;">
+        <tr><td style="background:#0a0a1a;padding:32px 40px;text-align:center;">
+          <h1 style="color:#f59e0b;margin:0;font-size:28px;">⚡ PowerPulse ECU</h1>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <p style="color:#333;font-size:16px;">Szia <strong>${user.ic_name}</strong>!</p>
+          <div style="color:#555;font-size:15px;line-height:1.6;">${message.replace(/\n/g,'<br>')}</div>
+        </td></tr>
+        <tr><td style="background:#f9f9f9;padding:20px 40px;text-align:center;border-top:1px solid #eee;">
+          <p style="color:#aaa;font-size:12px;margin:0;">⚡ PowerPulse ECU — SeeCity · 2026</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`);
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
