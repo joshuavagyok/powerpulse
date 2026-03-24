@@ -552,10 +552,311 @@ app.post('/api/admin/password', requireAdmin, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ===== DISCORD WEBHOOK =====
+const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || '';
+async function sendDiscordNotif(content) {
+  if (!DISCORD_WEBHOOK) return;
+  try {
+    await fetch(DISCORD_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content })
+    });
+  } catch(e) { console.log('Discord webhook hiba:', e.message); }
+}
+
+// ===== IDŐPONT FOGLALÁS (NAPTÁR) =====
+// Admin beállít szabad időpontokat, userek foglalnak
+app.get('/api/slots', async (req, res) => {
+  try {
+    const slots = await db.collection('slots').find({ available: true }).sort({ datetime: 1 }).toArray();
+    res.json(slots);
+  } catch(e) { res.json([]); }
+});
+
+app.post('/api/slots/book', requireUser, async (req, res) => {
+  try {
+    const { slotId } = req.body;
+    const slot = await db.collection('slots').findOne({ id: slotId, available: true });
+    if (!slot) return res.json({ error: 'Ez az időpont már foglalt vagy nem létezik!' });
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    await db.collection('slots').updateOne({ id: slotId }, { $set: {
+      available: false,
+      bookedBy: req.session.userId,
+      bookedByName: user.ic_name,
+      bookedAt: now()
+    }});
+    await sendDiscordNotif(`🗓️ **Új időpont foglalás!** ${user.ic_name} lefoglalta: **${slot.label}** (${slot.datetime})`);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/slots/add', requireAdmin, async (req, res) => {
+  try {
+    const { datetime, label } = req.body;
+    if (!datetime || !label) return res.json({ error: 'Hiányzó adatok!' });
+    await db.collection('slots').insertOne({ id: uid(), datetime, label, available: true, created: now() });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/admin/slots/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.collection('slots').deleteOne({ id: req.params.id });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/admin/slots', requireAdmin, async (req, res) => {
+  try {
+    const slots = await db.collection('slots').find().sort({ datetime: 1 }).toArray();
+    res.json(slots);
+  } catch(e) { res.json([]); }
+});
+
+// ===== REFERRAL RENDSZER =====
+app.get('/api/referral/link', requireUser, async (req, res) => {
+  try {
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    const code = Buffer.from(user.ic_name).toString('base64').replace(/=/g,'');
+    res.json({ code, link: `${BASE_URL}/login.html?ref=${code}`, referred: user.referredCount || 0, bonus_spins: user.bonusSpins || 0 });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Referral feldolgozás regisztrációkor
+app.post('/api/referral/apply', async (req, res) => {
+  try {
+    const { refCode, newUserId } = req.body;
+    if (!refCode) return res.json({ ok: false });
+    const referrerName = Buffer.from(refCode + '==', 'base64').toString('utf-8').replace(/[^a-zA-Z0-9_]/g,'');
+    const referrer = await db.collection('users').findOne({ ic_name: referrerName });
+    if (!referrer) return res.json({ ok: false });
+    await db.collection('users').updateOne({ ic_name: referrerName }, { $inc: { referredCount: 1, bonusSpins: 1 } });
+    res.json({ ok: true, referrerName });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Bonus spin felhasználása
+app.post('/api/spin/use-bonus', requireUser, async (req, res) => {
+  try {
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    if (!user || (user.bonusSpins || 0) < 1) return res.json({ error: 'Nincs bonus pörgetésed!' });
+    await db.collection('users').updateOne({ id: req.session.userId }, { $inc: { bonusSpins: -1 } });
+    res.json({ ok: true, remaining: (user.bonusSpins || 1) - 1 });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== GARÁZSNAPLÓ =====
+app.get('/api/garage', requireUser, async (req, res) => {
+  try {
+    const entries = await db.collection('garage').find({ userId: req.session.userId }).sort({ created: -1 }).toArray();
+    res.json(entries);
+  } catch(e) { res.json([]); }
+});
+
+app.post('/api/garage/add', requireUser, async (req, res) => {
+  try {
+    const { car, tuneType, notes, hp_before, hp_after } = req.body;
+    if (!car || !tuneType) return res.json({ error: 'Autó és tuning típus kötelező!' });
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    await db.collection('garage').insertOne({
+      id: uid(), userId: req.session.userId, ic_name: user.ic_name,
+      car, tuneType, notes: notes || '',
+      hp_before: hp_before || '', hp_after: hp_after || '',
+      created: now()
+    });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/garage/:id', requireUser, async (req, res) => {
+  try {
+    await db.collection('garage').deleteOne({ id: req.params.id, userId: req.session.userId });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== LOYALTY PONT =====
+app.get('/api/loyalty', requireUser, async (req, res) => {
+  try {
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    const points = user.loyaltyPoints || 0;
+    // Szint számítás
+    let tier = 'Bronz', next = 50;
+    if (points >= 200) { tier = 'Diamond'; next = null; }
+    else if (points >= 100) { tier = 'Arany'; next = 200; }
+    else if (points >= 50) { tier = 'Ezüst'; next = 100; }
+    res.json({ points, tier, next });
+  } catch(e) { res.json({ points: 0, tier: 'Bronz', next: 50 }); }
+});
+
+// Pont hozzáadás foglalás elfogadásakor (belső függvény) — automatikus
+async function addLoyaltyPoints(userId, amount, reason) {
+  try {
+    if (!userId) return;
+    await db.collection('users').updateOne({ id: userId }, { $inc: { loyaltyPoints: amount } });
+    await db.collection('loyalty_log').insertOne({ userId, amount, reason, created: now() });
+  } catch(e) { console.log('Loyalty hiba:', e.message); }
+}
+
+// ===== VISSZASZÁMLÁLÁS (admin beállítja a következő szabad időpontot) =====
+app.get('/api/countdown', async (req, res) => {
+  try {
+    const cfg = await db.collection('config').findOne({ key: 'countdown' });
+    res.json(cfg || { label: '', until: null });
+  } catch(e) { res.json({ label: '', until: null }); }
+});
+
+app.post('/api/admin/countdown', requireAdmin, async (req, res) => {
+  try {
+    const { label, until } = req.body;
+    await db.collection('config').updateOne({ key: 'countdown' }, { $set: { key: 'countdown', label, until } }, { upsert: true });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== SEECITY SZERVER STÁTUSZ =====
+app.get('/api/seecity/status', async (req, res) => {
+  try {
+    // SA-MP / MTA szerver státusz lekérése
+    const r = await fetch('https://api.samp-servers.net/v2-0/server/185.161.208.87:22003', {
+      headers: { 'User-Agent': 'PowerPulse/1.0' }
+    }).catch(() => null);
+    if (!r || !r.ok) {
+      return res.json({ online: false, players: 0, max: 0, name: 'SeeCity', error: 'timeout' });
+    }
+    const data = await r.json();
+    res.json({ online: true, players: data.pc || 0, max: data.pm || 100, name: data.hn || 'SeeCity' });
+  } catch(e) {
+    res.json({ online: false, players: 0, max: 0, name: 'SeeCity' });
+  }
+});
+
+// ===== FOGLALÁS → Discord + Loyalty pont (upgrade) =====
+// Felülírjuk a /api/submit-ot hogy Discord értesítést küldjön
+app._router.stack = app._router.stack.filter(r => !(r.route && r.route.path === '/api/submit'));
+app.post('/api/submit', async (req, res) => {
+  try {
+    const { ic_name, discord, phone, car, goal, notes, slot_id } = req.body;
+    if (!ic_name || !discord || !phone || !car || !goal) return res.redirect('/?error=1');
+    const bookingId = uid();
+    await db.collection('bookings').insertOne({
+      id: bookingId, ic_name, discord, phone, car, goal,
+      notes: notes || '', status: 'new', created: now(),
+      userId: req.session.userId || null,
+      slotId: slot_id || null
+    });
+    // Ha időpontot is foglalt → jelölje foglaltnak
+    if (slot_id) {
+      await db.collection('slots').updateOne({ id: slot_id }, { $set: { available: false, bookedByName: ic_name, bookedAt: now() }});
+    }
+    // Discord értesítés
+    await sendDiscordNotif(`🔧 **Új foglalás érkezett!**\n👤 ${ic_name} (Discord: ${discord})\n🚗 ${car}\n🎯 ${goal}${notes ? '\n📝 ' + notes : ''}`);
+    res.redirect('/?success=1');
+  } catch(e) { res.redirect('/?error=1'); }
+});
+
+// Foglalás elfogadásakor loyalty pont + Discord értesítés (upgrade)
+app._router.stack = app._router.stack.filter(r => !(r.route && r.route.path === '/api/admin/booking/:id/:action' && r.route.methods.post));
+app.post('/api/admin/booking/:id/:action', requireAdmin, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    if (action === 'delete') {
+      await db.collection('bookings').deleteOne({ id });
+    } else {
+      await db.collection('bookings').updateOne({ id }, { $set: { status: action } });
+      const booking = await db.collection('bookings').findOne({ id });
+      // Loyalty pont elfogadásnál
+      if (action === 'accepted' && booking && booking.userId) {
+        await addLoyaltyPoints(booking.userId, 10, `Elfogadott foglalás: ${booking.car}`);
+      }
+      // Email értesítés
+      if (booking && booking.userId) {
+        const user = await db.collection('users').findOne({ id: booking.userId });
+        if (user && user.email) {
+          const statusText = action === 'accepted' ? '✅ Elfogadva' : action === 'rejected' ? '❌ Elutasítva' : '🔄 Folyamatban';
+          const statusMsg = action === 'accepted'
+            ? 'A foglalásod elfogadtuk! Hamarosan felvesszük veled a kapcsolatot.'
+            : action === 'rejected'
+            ? 'Sajnos a foglalásod elutasításra került. Kérjük vedd fel velünk a kapcsolatot Discordon.'
+            : 'A foglalásod feldolgozás alatt van.';
+          sendEmail(user.email, `⚡ PowerPulse — Foglalás státusz: ${statusText}`, `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;"><tr><td align="center">
+<table width="500" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;max-width:500px;">
+<tr><td style="background:#0a0a1a;padding:32px 40px;text-align:center;"><h1 style="color:#f59e0b;margin:0;font-size:28px;">⚡ PowerPulse ECU</h1></td></tr>
+<tr><td style="padding:40px;">
+<p style="color:#333;font-size:16px;">Szia <strong>${user.ic_name}</strong>!</p>
+<p style="color:#555;font-size:15px;">Foglalásod státusza:</p>
+<div style="background:#f9f9f9;border-left:4px solid #f59e0b;padding:16px;border-radius:4px;margin:24px 0;">
+<p style="margin:0;font-size:18px;font-weight:700;">${statusText}</p>
+<p style="margin:8px 0 0;color:#666;">${statusMsg}</p>
+</div>
+<p style="color:#999;font-size:13px;">Foglalás: <strong>${booking.car}</strong> — ${booking.goal}</p>
+</td></tr>
+<tr><td style="background:#f9f9f9;padding:20px 40px;text-align:center;border-top:1px solid #eee;">
+<p style="color:#aaa;font-size:12px;margin:0;">⚡ PowerPulse ECU — SeeCity · 2026</p>
+</td></tr></table></td></tr></table>
+</body></html>`).catch(e => console.log('Email hiba:', e.message));
+        }
+      }
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== ÉLŐ CHAT (egyszerű polling alapú) =====
+app.get('/api/chat/:bookingId', requireUser, async (req, res) => {
+  try {
+    const booking = await db.collection('bookings').findOne({ id: req.params.bookingId, userId: req.session.userId });
+    if (!booking) return res.status(403).json({ error: 'Nincs hozzáférés!' });
+    const messages = await db.collection('chat').find({ bookingId: req.params.bookingId }).sort({ created: 1 }).toArray();
+    res.json(messages);
+  } catch(e) { res.json([]); }
+});
+
+app.post('/api/chat/:bookingId', requireUser, async (req, res) => {
+  try {
+    const booking = await db.collection('bookings').findOne({ id: req.params.bookingId, userId: req.session.userId });
+    if (!booking) return res.status(403).json({ error: 'Nincs hozzáférés!' });
+    const { message } = req.body;
+    if (!message || message.trim().length < 1) return res.json({ error: 'Üzenet nem lehet üres!' });
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    await db.collection('chat').insertOne({
+      id: uid(), bookingId: req.params.bookingId,
+      sender: user.ic_name, senderType: 'user',
+      message: message.trim().substring(0, 500), created: now(), ts: Date.now()
+    });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin chat
+app.get('/api/admin/chat/:bookingId', requireAdmin, async (req, res) => {
+  try {
+    const messages = await db.collection('chat').find({ bookingId: req.params.bookingId }).sort({ created: 1 }).toArray();
+    res.json(messages);
+  } catch(e) { res.json([]); }
+});
+
+app.post('/api/admin/chat/:bookingId', requireAdmin, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || message.trim().length < 1) return res.json({ error: 'Üzenet nem lehet üres!' });
+    await db.collection('chat').insertOne({
+      id: uid(), bookingId: req.params.bookingId,
+      sender: 'Joshua (Admin)', senderType: 'admin',
+      message: message.trim().substring(0, 500), created: now(), ts: Date.now()
+    });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ===== INDÍTÁS =====
-// v2.1 — Brevo email, MongoDB, account rendszer
+// v3.0 — Teljes feature set: naptár, referral, garázsnapló, loyalty, chat, Discord, visszaszámlálás
 connectDB().then(() => {
-  app.listen(PORT, () => console.log(`🚀 PowerPulse v2.1 fut: http://localhost:${PORT}`));
+  app.listen(PORT, () => console.log(`🚀 PowerPulse v3.0 fut: http://localhost:${PORT}`));
 }).catch(err => {
   console.error('❌ MongoDB kapcsolódási hiba:', err);
   process.exit(1);

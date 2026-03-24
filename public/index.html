@@ -755,6 +755,23 @@ loadApprovedReviews();
 // ===== LÁTOGATÓSZÁMLÁLÓ =====
 fetch("/api/track").catch(()=>{});
 
+// ===== VISSZASZÁMLÁLÁS =====
+fetch('/api/countdown').then(r=>r.json()).then(data=>{
+  if(!data.until) return;
+  const wrap = document.createElement('div');
+  wrap.id='countdown-banner';
+  wrap.style.cssText='position:fixed;bottom:20px;right:20px;z-index:100;background:rgba(12,12,30,0.97);border:1.5px solid #f59e0b;border-radius:12px;padding:14px 18px;font-family:"Space Grotesk",sans-serif;min-width:200px;box-shadow:0 0 30px rgba(245,158,11,0.2)';
+  document.body.appendChild(wrap);
+  function updateCountdown(){
+    const diff = new Date(data.until) - Date.now();
+    if(diff<=0){wrap.remove();return;}
+    const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+    wrap.innerHTML=`<div style="color:#f59e0b;font-weight:700;font-size:.85rem;margin-bottom:6px">⏰ ${data.label||'Következő időpont'}</div><div style="color:#fff;font-size:1.3rem;font-weight:700;letter-spacing:1px">${d>0?d+'n ':''}<span style="color:#f59e0b">${String(h).padStart(2,'0')}</span>:<span style="color:#f59e0b">${String(m).padStart(2,'0')}</span>:<span style="color:#f59e0b">${String(s).padStart(2,'0')}</span></div>`;
+  }
+  updateCountdown();
+  setInterval(updateCountdown,1000);
+}).catch(()=>{});
+
 if(window.location.search.includes('review_sent=1')){
   document.getElementById('review-sent-msg').style.display='flex';
   document.getElementById('review-form').style.display='none';

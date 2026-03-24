@@ -119,6 +119,51 @@ input:focus { outline:none; border-color:#f59e0b; }
     <h3>🏆 Rangsor — Leghűségesebb ügyfelek</h3>
     <div id="leaderboard-list"><div class="empty">Betöltés...</div></div>
   </div>
+
+  <!-- Loyalty + Referral sor -->
+  <div class="grid" style="margin-top:24px;">
+    <div class="card">
+      <h3>💎 Loyalty Pontjaim</h3>
+      <div id="loyalty-box">
+        <div class="info-row"><span class="info-label">Pont</span><span class="info-value" id="l-points">—</span></div>
+        <div class="info-row"><span class="info-label">Szint</span><span class="info-value" id="l-tier">—</span></div>
+        <div class="info-row"><span class="info-label">Következő szint</span><span class="info-value" id="l-next">—</span></div>
+      </div>
+      <div style="margin-top:14px;font-size:.8rem;color:#555">Minden elfogadott foglalásért +10 pont jár.</div>
+    </div>
+    <div class="card">
+      <h3>🔗 Referral Link</h3>
+      <div style="font-size:.85rem;color:#888;margin-bottom:12px">Hívj meg barátokat — minden regisztrációért +1 extra pörgetés jár!</div>
+      <div id="ref-info">
+        <div class="info-row"><span class="info-label">Meghívottak</span><span class="info-value" id="r-count">—</span></div>
+        <div class="info-row"><span class="info-label">Bonus pörgetés</span><span class="info-value" id="r-bonus">—</span></div>
+      </div>
+      <div style="margin-top:14px">
+        <label style="color:#888;font-size:.82rem;display:block;margin-bottom:5px">Referral link</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="ref-link" readonly style="font-size:.78rem;opacity:.7">
+          <button class="btn btn-sm" onclick="copyRef()">Másolás</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SeeCity státusz + Garázsnapló link -->
+  <div class="grid" style="margin-top:24px;">
+    <div class="card">
+      <h3>🖥️ SeeCity Szerver</h3>
+      <div id="seecity-box">
+        <div class="info-row"><span class="info-label">Státusz</span><span class="info-value" id="sc-status">Betöltés...</span></div>
+        <div class="info-row"><span class="info-label">Játékosok</span><span class="info-value" id="sc-players">—</span></div>
+      </div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+      <div style="font-size:3rem;margin-bottom:12px">🔧</div>
+      <div style="font-weight:700;font-size:1.1rem;margin-bottom:8px">Garázsnapló</div>
+      <div style="color:#888;font-size:.85rem;margin-bottom:16px">ECU tuning előzmények, LE adatok, szerviz bejegyzések</div>
+      <a href="/garage.html" class="btn">Megnyitás →</a>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -206,7 +251,67 @@ async function saveProfile() {
   }
 }
 
+// Loyalty
+async function loadLoyalty() {
+  const r = await fetch('/api/loyalty').then(r=>r.json());
+  document.getElementById('l-points').textContent = r.points + ' pont';
+  const tierEmoji = {Bronz:'🥉',Ezüst:'🥈',Arany:'🥇',Diamond:'💎'};
+  document.getElementById('l-tier').textContent = (tierEmoji[r.tier]||'') + ' ' + r.tier;
+  document.getElementById('l-next').textContent = r.next ? `${r.next} pont` : '🏆 Maximum szint!';
+}
+
+// Referral
+async function loadReferral() {
+  const r = await fetch('/api/referral/link').then(r=>r.json());
+  if (r.link) {
+    document.getElementById('r-count').textContent = r.referred + ' fő';
+    document.getElementById('r-bonus').textContent = r.bonus_spins + ' db';
+    document.getElementById('ref-link').value = r.link;
+  }
+}
+
+function copyRef() {
+  const el = document.getElementById('ref-link');
+  navigator.clipboard.writeText(el.value).then(()=>{
+    const btn = event.target;
+    btn.textContent = '✅ Másolva!';
+    setTimeout(()=>btn.textContent='Másolás', 2000);
+  });
+}
+
+// SeeCity státusz
+async function loadSeeCity() {
+  const r = await fetch('/api/seecity/status').then(r=>r.json()).catch(()=>({online:false}));
+  document.getElementById('sc-status').innerHTML = r.online
+    ? '<span style="color:#4ade80">🟢 Online</span>'
+    : '<span style="color:#f87171">🔴 Offline</span>';
+  document.getElementById('sc-players').textContent = r.online ? `${r.players} / ${r.max}` : '—';
+}
+
+// Easter egg — Konami kód
+let konamiSeq = [];
+const KONAMI = [38,38,40,40,37,39,37,39,66,65];
+document.addEventListener('keydown', e => {
+  konamiSeq.push(e.keyCode);
+  if (konamiSeq.length > 10) konamiSeq.shift();
+  if (konamiSeq.join(',') === KONAMI.join(',')) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="easter-egg" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);cursor:pointer" onclick="document.getElementById('easter-egg').remove()">
+        <div style="text-align:center;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)">
+          <div style="font-size:5rem">🏎️</div>
+          <h2 style="color:#f59e0b;font-size:2rem;margin:16px 0 8px">TITKOS MÓD</h2>
+          <p style="color:#aaa">Te megtaláltad a Konami kódot!<br>+1 bonus pörgetés jár — vedd fel a kapcsolatot Joshuával!</p>
+          <p style="color:#555;font-size:.8rem;margin-top:16px">Kattints bárhova a bezáráshoz</p>
+        </div>
+      </div>`);
+    konamiSeq = [];
+  }
+});
+
 loadAll();
+loadLoyalty();
+loadReferral();
+loadSeeCity();
 </script>
 </body>
 </html>
