@@ -49,18 +49,34 @@ async function sendEmail(to, subject, html) {
 
 async function sendVerificationEmail(email, token, ic_name) {
   const link = `${BASE_URL}/api/verify?token=${token}`;
-  await sendEmail(email, '⚡ PowerPulse — Erősítsd meg a fiókodat!', `
-      <div style="font-family:'Segoe UI',sans-serif;background:#0a0a1a;padding:40px;border-radius:16px;max-width:500px;margin:0 auto;">
-        <h1 style="color:#f59e0b;font-size:1.8rem;margin-bottom:8px;">⚡ PowerPulse ECU</h1>
-        <p style="color:#c0c0d0;font-size:1rem;">Szia <strong style="color:#fff">${ic_name}</strong>!</p>
-        <p style="color:#c0c0d0;">A fiókod sikeresen létrejött. Kattints az alábbi gombra a megerősítéshez:</p>
-        <a href="${link}" style="display:inline-block;margin:24px 0;padding:14px 32px;background:#f59e0b;color:#0a0a1a;border-radius:10px;font-weight:700;font-size:1rem;text-decoration:none;">
-          ✅ Fiók megerősítése
-        </a>
-        <p style="color:#666;font-size:0.85rem;">Ha nem te regisztráltál, hagyd figyelmen kívül ezt az emailt.</p>
-        <p style="color:#444;font-size:0.8rem;margin-top:32px;">⚡ PowerPulse ECU — SeeCity legjobb ECU tuning szolgáltatása</p>
-      </div>
-    `);
+  await sendEmail(email, '⚡ PowerPulse — Erősítsd meg a fiókodat!', `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;max-width:500px;width:100%;">
+        <!-- Header -->
+        <tr><td style="background:#0a0a1a;padding:32px 40px;text-align:center;">
+          <h1 style="color:#f59e0b;margin:0;font-size:28px;letter-spacing:1px;">⚡ PowerPulse ECU</h1>
+          <p style="color:#888;margin:8px 0 0;font-size:13px;">SeeCity legjobb ECU tuning szolgáltatása</p>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:40px;">
+          <p style="color:#333;font-size:16px;margin:0 0 8px;">Szia <strong>${ic_name}</strong>!</p>
+          <p style="color:#555;font-size:15px;margin:0 0 32px;">A fiókodat sikeresen létrehoztuk. Kattints az alábbi gombra az email cím megerősítéséhez:</p>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+            <a href="${link}" style="display:inline-block;background:#f59e0b;color:#0a0a1a;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:700;font-size:16px;">✅ Fiók megerősítése</a>
+          </td></tr></table>
+          <p style="color:#999;font-size:13px;margin:32px 0 0;">Ha nem te regisztráltál, hagyd figyelmen kívül ezt az emailt.</p>
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="background:#f9f9f9;padding:20px 40px;text-align:center;border-top:1px solid #eee;">
+          <p style="color:#aaa;font-size:12px;margin:0;">⚡ PowerPulse ECU — SeeCity · 2026</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`);
 }
 
 // ===== MONGODB =====
