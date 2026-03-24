@@ -113,7 +113,10 @@ app.post('/api/register', async (req, res) => {
       lastSpin: null
     });
 
-    await sendVerificationEmail(email, verifyToken, ic_name);
+    // Email aszinkron küldés — nem blokkolja a választ
+    sendVerificationEmail(email, verifyToken, ic_name)
+      .then(() => console.log(`✅ Email elküldve: ${email}`))
+      .catch(e => console.log(`❌ Email hiba: ${e.message}`));
     res.json({ ok: true, message: 'Regisztráció sikeres! Ellenőrizd az emailedet a megerősítéshez.' });
   } catch(e) {
     if (e.code === 11000) return res.json({ error: 'Ez az IC név vagy email már foglalt!' });
