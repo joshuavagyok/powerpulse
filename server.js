@@ -10,7 +10,7 @@ const path = require('path');
 // ===== KONFIG =====
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTMsuHGgB2aPISK@powerpulse.fbwh8gh.mongodb.net/?appName=powerpulse';
 const GMAIL_USER = process.env.GMAIL_USER || 'powerpulse.ecu@gmail.com';
-const GMAIL_PASS = process.env.GMAIL_PASS || 'uzib grsv lasr mhpb'; // App Password szóközökkel
+const GMAIL_PASS = process.env.GMAIL_PASS || 'ntxd rydu pycu bmca';
 const BASE_URL = process.env.BASE_URL || 'https://powerpulse-thhr.onrender.com';
 
 let db;
