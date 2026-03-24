@@ -375,6 +375,22 @@ app.post('/api/admin/prize/:id/done', requireAdmin, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// User törlés
+app.post('/api/admin/user/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    await db.collection('users').deleteOne({ id: req.params.id });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Összes user törlése (csak adminnak)
+app.post('/api/admin/users/deleteAll', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.collection('users').deleteMany({});
+    res.json({ ok: true, deleted: result.deletedCount });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // User ban/unban
 app.post('/api/admin/user/:id/ban', requireAdmin, async (req, res) => {
   try {
