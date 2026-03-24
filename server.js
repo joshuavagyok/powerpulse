@@ -10,14 +10,16 @@ const path = require('path');
 // ===== KONFIG =====
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTMsuHGgB2aPISK@powerpulse.fbwh8gh.mongodb.net/?appName=powerpulse';
 const GMAIL_USER = process.env.GMAIL_USER || 'powerpulse.ecu@gmail.com';
-const GMAIL_PASS = process.env.GMAIL_PASS || 'uzib grsv lasr mhpb';
+const GMAIL_PASS = (process.env.GMAIL_PASS || 'uzib grsv lasr mhpb').replace(/\s/g, '');
 const BASE_URL = process.env.BASE_URL || 'https://powerpulse-thhr.onrender.com';
 
 let db;
 
 // ===== EMAIL =====
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: { user: GMAIL_USER, pass: GMAIL_PASS }
 });
 
