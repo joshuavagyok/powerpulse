@@ -188,17 +188,6 @@ app.get('/api/user/me', requireUser, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ===== DEBUG (temp) =====
-app.get('/api/debug/email', async (req, res) => {
-  const key = BREVO_KEY || 'URES';
-  try {
-    const result = await sendEmail('josika886@gmail.com', '⚡ Debug teszt', '<p>Debug email!</p>');
-    res.json({ ok: true, keyPrefix: key.substring(0,12), result });
-  } catch(e) {
-    res.json({ ok: false, keyPrefix: key.substring(0,12), error: e.message });
-  }
-});
-
 // ===== VISITOR TRACKING =====
 app.get('/api/track', async (req, res) => {
   try {
