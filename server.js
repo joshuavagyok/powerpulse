@@ -3,7 +3,7 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
+const fetch = require('node-fetch');
 
 // ===== GITHUB BACKUP =====
 const GH_TOKEN = process.env.GH_TOKEN || '';
@@ -11,55 +11,41 @@ const GH_REPO = 'joshuavagyok/powerpulse';
 const GH_BRANCH = 'main';
 
 async function githubBackup(filename, content) {
-  if (!GH_TOKEN) return;
-  const filePath = `data/${filename}`;
-  const encoded = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
-
-  // Lekérjük a jelenlegi fájl SHA-ját
-  const getSha = () => new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.github.com',
-      path: `/repos/${GH_REPO}/contents/${filePath}`,
-      method: 'GET',
-      headers: { 'Authorization': `token ${GH_TOKEN}`, 'User-Agent': 'PowerPulse', 'Accept': 'application/vnd.github.v3+json' }
-    }, (res) => {
-      let data = '';
-      res.on('data', d => data += d);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data).sha || null); }
-        catch { resolve(null); }
-      });
-    });
-    req.on('error', () => resolve(null));
-    req.end();
-  });
-
-  const sha = await getSha();
-  const body = JSON.stringify({
-    message: `backup: ${filename} - ${new Date().toISOString()}`,
-    content: encoded,
-    branch: GH_BRANCH,
-    ...(sha ? { sha } : {})
-  });
-
-  const req = https.request({
-    hostname: 'api.github.com',
-    path: `/repos/${GH_REPO}/contents/${filePath}`,
-    method: 'PUT',
-    headers: {
+  if (!GH_TOKEN) { console.log('GH_TOKEN nincs beállítva!'); return; }
+  try {
+    const filePath = `data/${filename}`;
+    const apiUrl = `https://api.github.com/repos/${GH_REPO}/contents/${filePath}`;
+    const headers = {
       'Authorization': `token ${GH_TOKEN}`,
       'User-Agent': 'PowerPulse',
       'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(body)
+      'Content-Type': 'application/json'
+    };
+
+    // SHA lekérése
+    let sha = null;
+    const getRes = await fetch(apiUrl, { headers });
+    if (getRes.ok) {
+      const getData = await getRes.json();
+      sha = getData.sha || null;
     }
-  }, (res) => {
-    res.resume();
-    console.log(`GitHub backup: ${filename} → ${res.statusCode}`);
-  });
-  req.on('error', (e) => console.log(`GitHub backup hiba: ${e.message}`));
-  req.write(body);
-  req.end();
+
+    // Feltöltés
+    const encoded = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        message: `backup: ${filename} - ${new Date().toISOString()}`,
+        content: encoded,
+        branch: GH_BRANCH,
+        ...(sha ? { sha } : {})
+      })
+    });
+    console.log(`GitHub backup: ${filename} → ${putRes.status}`);
+  } catch(e) {
+    console.log(`GitHub backup hiba (${filename}): ${e.message}`);
+  }
 }
 
 function writeAndBackup(filename, data) {
@@ -289,30 +275,20 @@ app.listen(PORT, () => console.log(`PowerPulse fut: http://localhost:${PORT}`));
 // ===== STARTUP: Visszatöltés GitHub-ból =====
 async function restoreFromGithub(filename) {
   if (!GH_TOKEN) return;
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.github.com',
-      path: `/repos/${GH_REPO}/contents/data/${filename}`,
-      method: 'GET',
-      headers: { 'Authorization': `token ${GH_TOKEN}`, 'User-Agent': 'PowerPulse', 'Accept': 'application/vnd.github.v3+json' }
-    }, (res) => {
-      let data = '';
-      res.on('data', d => data += d);
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.content) {
-            const content = Buffer.from(parsed.content, 'base64').toString('utf8');
-            fs.writeFileSync(path.join(DATA_DIR, filename), content);
-            console.log(`✅ Visszaállítva GitHub-ról: ${filename}`);
-          }
-        } catch(e) { console.log(`GitHub restore skip: ${filename}`); }
-        resolve();
-      });
-    });
-    req.on('error', () => resolve());
-    req.end();
-  });
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${GH_REPO}/contents/data/${filename}`,
+      { headers: { 'Authorization': `token ${GH_TOKEN}`, 'User-Agent': 'PowerPulse', 'Accept': 'application/vnd.github.v3+json' } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.content) {
+        const content = Buffer.from(data.content, 'base64').toString('utf8');
+        fs.writeFileSync(path.join(DATA_DIR, filename), content);
+        console.log(`✅ Visszaállítva: ${filename}`);
+      }
+    }
+  } catch(e) { console.log(`Restore skip (${filename}): ${e.message}`); }
 }
 
 // Induláskor visszatöltés
