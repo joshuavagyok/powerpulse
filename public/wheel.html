@@ -331,18 +331,11 @@ function spin() {
   document.getElementById('ic-form-wrap').classList.remove('show');
 
   const winner = getWinner();
-  // Kiszámoljuk hol kell megállni — egyforma vizuális szegmensek alapján!
+  // Kiszámoljuk hol kell megállni — index alapján, nem prize alapján!
   const totalDisplay = SEGMENTS.length;
-  let targetAngle = 0;
-  let cumulative = 0;
-  for (const seg of SEGMENTS) {
-    const sliceAngle = (1 / totalDisplay) * 2 * Math.PI;
-    if (seg.prize === winner.prize) {
-      targetAngle = cumulative + sliceAngle / 2;
-      break;
-    }
-    cumulative += sliceAngle;
-  }
+  const winnerIndex = SEGMENTS.indexOf(winner);
+  const sliceAngle = (1 / totalDisplay) * 2 * Math.PI;
+  const targetAngle = winnerIndex * sliceAngle + sliceAngle / 2;
 
   // A mutató felülről (PI*1.5) mutat — a kerék forog
   // Célszög: a mutató a szelet közepére essen
