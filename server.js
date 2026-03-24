@@ -11,16 +11,18 @@ const path = require('path');
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTMsuHGgB2aPISK@powerpulse.fbwh8gh.mongodb.net/?appName=powerpulse';
 const GMAIL_USER = process.env.GMAIL_USER || 'powerpulse.ecu@gmail.com';
 const GMAIL_PASS = process.env.GMAIL_PASS || 'ntxd rydu pycu bmca';
+const BREVO_USER = process.env.BREVO_USER || 'a5e3f1001@smtp-brevo.com';
+const BREVO_PASS = process.env.BREVO_PASS || '';
 const BASE_URL = process.env.BASE_URL || 'https://powerpulse-thhr.onrender.com';
 
 let db;
 
 // ===== EMAIL =====
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: { user: GMAIL_USER, pass: GMAIL_PASS }
+  host: 'smtp-relay.brevo.com',
+  port: 587,
+  secure: false,
+  auth: { user: BREVO_USER, pass: BREVO_PASS }
 });
 
 async function sendVerificationEmail(email, token, ic_name) {
