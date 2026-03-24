@@ -399,8 +399,9 @@ app.post('/api/admin/password', requireAdmin, async (req, res) => {
 });
 
 // ===== INDÍTÁS =====
+// v2.1 — Brevo email, MongoDB, account rendszer
 connectDB().then(() => {
-  app.listen(PORT, () => console.log(`🚀 PowerPulse fut: http://localhost:${PORT}`));
+  app.listen(PORT, () => console.log(`🚀 PowerPulse v2.1 fut: http://localhost:${PORT}`));
 }).catch(err => {
   console.error('❌ MongoDB kapcsolódási hiba:', err);
   process.exit(1);
