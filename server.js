@@ -1,85 +1,31 @@
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
-const fs = require('fs');
+const { MongoClient, ObjectId } = require('mongodb');
 const path = require('path');
-const fetch = require('node-fetch');
 
-// ===== GITHUB BACKUP =====
-const GH_TOKEN = process.env.GH_TOKEN || '';
-const GH_REPO = 'joshuavagyok/powerpulse';
-const GH_BRANCH = 'main';
+// ===== MONGODB =====
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTMsuHGgB2aPISK@powerpulse.fbwh8gh.mongodb.net/?appName=powerpulse';
+let db;
 
-async function githubBackup(filename, content) {
-  if (!GH_TOKEN) { console.log('GH_TOKEN nincs beállítva!'); return; }
-  try {
-    const filePath = `data/${filename}`;
-    const apiUrl = `https://api.github.com/repos/${GH_REPO}/contents/${filePath}`;
-    const headers = {
-      'Authorization': `token ${GH_TOKEN}`,
-      'User-Agent': 'PowerPulse',
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json'
-    };
+async function connectDB() {
+  const client = new MongoClient(MONGO_URI);
+  await client.connect();
+  db = client.db('powerpulse');
+  console.log('✅ MongoDB csatlakozva!');
 
-    // SHA lekérése
-    let sha = null;
-    const getRes = await fetch(apiUrl, { headers });
-    if (getRes.ok) {
-      const getData = await getRes.json();
-      sha = getData.sha || null;
-    }
-
-    // Feltöltés
-    const encoded = Buffer.from(JSON.stringify(content, null, 2)).toString('base64');
-    const putRes = await fetch(apiUrl, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({
-        message: `backup: ${filename} - ${new Date().toISOString()}`,
-        content: encoded,
-        branch: GH_BRANCH,
-        ...(sha ? { sha } : {})
-      })
-    });
-    console.log(`GitHub backup: ${filename} → ${putRes.status}`);
-  } catch(e) {
-    console.log(`GitHub backup hiba (${filename}): ${e.message}`);
+  // Alap admin config ha nincs még
+  const cfg = await db.collection('config').findOne({ key: 'admin' });
+  if (!cfg) {
+    await db.collection('config').insertOne({ key: 'admin', username: 'Joshua', password: 'Hungary20030905' });
+    console.log('✅ Admin config létrehozva');
   }
-}
-
-function writeAndBackup(filename, data) {
-  writeJSON(filename, data);
-  githubBackup(filename, data).catch(console.error);
 }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
-
-// Data könyvtár létrehozása
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-
-// Alap JSON fájlok inicializálása
-const initFile = (file, def) => {
-  const p = path.join(DATA_DIR, file);
-  if (!fs.existsSync(p)) fs.writeFileSync(p, JSON.stringify(def));
-};
-initFile('bookings.json', []);
-initFile('reviews.json', []);
-initFile('announcements.json', []);
-initFile('prizes.json', []);
-initFile('visitors.json', { total: 0, today: 0, date: '' });
-initFile('config.json', { username: 'Joshua', password: 'Hungary20030905' });
 
 // Helpers
-const readJSON = (file) => {
-  try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8')); }
-  catch { return null; }
-};
-const writeJSON = (file, data) => {
-  fs.writeFileSync(path.join(DATA_DIR, file), JSON.stringify(data, null, 2));
-};
 const uid = () => 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
 const now = () => new Date().toLocaleString('hu-HU', { timeZone: 'Europe/Budapest' });
 
@@ -92,60 +38,80 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ===== API VÉGPONTOK =====
 
 // Visitor tracking
-app.get('/api/track', (req, res) => {
-  let v = readJSON('visitors.json');
-  const today = new Date().toISOString().split('T')[0];
-  if (v.date !== today) { v.today = 0; v.date = today; }
-  if (!req.session.visited) {
-    req.session.visited = true;
-    v.total++; v.today++;
-    writeAndBackup('visitors.json', v);
-  }
-  res.json(v);
+app.get('/api/track', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    let v = await db.collection('visitors').findOne({ key: 'stats' });
+    if (!v) {
+      v = { key: 'stats', total: 0, today: 0, date: today };
+      await db.collection('visitors').insertOne(v);
+    }
+    if (v.date !== today) {
+      await db.collection('visitors').updateOne({ key: 'stats' }, { $set: { today: 0, date: today } });
+      v.today = 0;
+    }
+    if (!req.session.visited) {
+      req.session.visited = true;
+      await db.collection('visitors').updateOne({ key: 'stats' }, { $inc: { total: 1, today: 1 } });
+      v.total++; v.today++;
+    }
+    res.json({ total: v.total, today: v.today, date: today });
+  } catch(e) { res.json({ total: 0, today: 0, date: '' }); }
 });
 
 // Hirdetmények
-app.get('/api/announcements', (req, res) => {
-  const all = readJSON('announcements.json') || [];
-  res.json(all.filter(a => a.active && a.text));
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const all = await db.collection('announcements').find({ active: true }).sort({ created: -1 }).toArray();
+    res.json(all);
+  } catch(e) { res.json([]); }
 });
 
 // Vélemények
-app.get('/api/reviews', (req, res) => {
-  const all = readJSON('reviews.json') || [];
-  res.json(all.filter(r => r.status === 'approved'));
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const all = await db.collection('reviews').find({ status: 'approved' }).sort({ created: -1 }).toArray();
+    res.json(all);
+  } catch(e) { res.json([]); }
 });
 
 // Foglalás beküldés
-app.post('/api/submit', (req, res) => {
-  const { ic_name, discord, phone, car, goal, notes } = req.body;
-  if (!ic_name || !discord || !phone || !car || !goal) {
-    return res.redirect('/?error=1');
-  }
-  const bookings = readJSON('bookings.json') || [];
-  bookings.unshift({ id: uid(), ic_name, discord, phone, car, goal, notes: notes || '', status: 'new', created: now() });
-  writeAndBackup('bookings.json', bookings);
-  res.redirect('/?success=1');
+app.post('/api/submit', async (req, res) => {
+  try {
+    const { ic_name, discord, phone, car, goal, notes } = req.body;
+    if (!ic_name || !discord || !phone || !car || !goal) return res.redirect('/?error=1');
+    await db.collection('bookings').insertOne({
+      id: uid(), ic_name, discord, phone, car, goal,
+      notes: notes || '', status: 'new', created: now()
+    });
+    res.redirect('/?success=1');
+  } catch(e) { res.redirect('/?error=1'); }
 });
 
 // Vélemény beküldés
-app.post('/api/review', (req, res) => {
-  const { name, car, text, rating } = req.body;
-  if (!name || !text || text.length < 5) return res.redirect('/?review_error=1');
-  const reviews = readJSON('reviews.json') || [];
-  reviews.push({ id: uid(), name, car: car || '', text, rating: parseInt(rating) || 5, status: 'pending', created: now() });
-  writeAndBackup('reviews.json', reviews);
-  res.redirect('/?review_sent=1');
+app.post('/api/review', async (req, res) => {
+  try {
+    const { name, car, text, rating } = req.body;
+    if (!name || !text || text.length < 5) return res.redirect('/?review_error=1');
+    await db.collection('reviews').insertOne({
+      id: uid(), name, car: car || '', text,
+      rating: parseInt(rating) || 5, status: 'pending', created: now()
+    });
+    res.redirect('/?review_sent=1');
+  } catch(e) { res.redirect('/?review_error=1'); }
 });
 
 // Nyeremény mentés
-app.post('/api/prize', (req, res) => {
-  const { ic_name, ic_phone, prize, prize_text } = req.body;
-  if (!ic_name || !prize) return res.status(400).json({ error: 'missing' });
-  const prizes = readJSON('prizes.json') || [];
-  prizes.push({ id: uid(), ic_name, ic_phone: ic_phone || '', prize, prize_text: prize_text || '', status: 'pending', created: now() });
-  writeAndBackup('prizes.json', prizes);
-  res.json({ ok: true });
+app.post('/api/prize', async (req, res) => {
+  try {
+    const { ic_name, ic_phone, prize, prize_text } = req.body;
+    if (!ic_name || !prize) return res.status(400).json({ error: 'missing' });
+    await db.collection('prizes').insertOne({
+      id: uid(), ic_name, ic_phone: ic_phone || '', prize,
+      prize_text: prize_text || '', status: 'pending', created: now()
+    });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ===== ADMIN API =====
@@ -154,14 +120,16 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-app.post('/api/admin/login', (req, res) => {
-  const config = readJSON('config.json');
-  if (req.body.username === config.username && req.body.password === config.password) {
-    req.session.admin = true;
-    res.json({ ok: true });
-  } else {
-    res.status(401).json({ error: 'wrong password' });
-  }
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const config = await db.collection('config').findOne({ key: 'admin' });
+    if (req.body.username === config.username && req.body.password === config.password) {
+      req.session.admin = true;
+      res.json({ ok: true });
+    } else {
+      res.status(401).json({ error: 'wrong password' });
+    }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/admin/logout', (req, res) => {
@@ -169,84 +137,87 @@ app.get('/api/admin/logout', (req, res) => {
   res.redirect('/admin.html');
 });
 
-app.get('/api/admin/data', requireAdmin, (req, res) => {
-  res.json({
-    bookings: readJSON('bookings.json') || [],
-    reviews: readJSON('reviews.json') || [],
-    announcements: readJSON('announcements.json') || [],
-    prizes: readJSON('prizes.json') || [],
-    visitors: readJSON('visitors.json') || {},
-  });
+app.get('/api/admin/data', requireAdmin, async (req, res) => {
+  try {
+    const [bookings, reviews, announcements, prizes, visitors] = await Promise.all([
+      db.collection('bookings').find().sort({ created: -1 }).toArray(),
+      db.collection('reviews').find().sort({ created: -1 }).toArray(),
+      db.collection('announcements').find().sort({ created: -1 }).toArray(),
+      db.collection('prizes').find().sort({ created: -1 }).toArray(),
+      db.collection('visitors').findOne({ key: 'stats' })
+    ]);
+    res.json({ bookings, reviews, announcements, prizes, visitors: visitors || {} });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/booking/:id/:action', requireAdmin, (req, res) => {
-  const bookings = readJSON('bookings.json') || [];
-  const { id, action } = req.params;
-  if (action === 'delete') {
-    writeAndBackup('bookings.json', bookings.filter(b => b.id !== id));
-  } else {
-    bookings.forEach(b => { if (b.id === id) b.status = action; });
-    writeAndBackup('bookings.json', bookings);
-  }
-  res.json({ ok: true });
+app.post('/api/admin/booking/:id/:action', requireAdmin, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    if (action === 'delete') {
+      await db.collection('bookings').deleteOne({ id });
+    } else {
+      await db.collection('bookings').updateOne({ id }, { $set: { status: action } });
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/review/:id/:action', requireAdmin, (req, res) => {
-  const reviews = readJSON('reviews.json') || [];
-  const { id, action } = req.params;
-  if (action === 'delete') {
-    writeAndBackup('reviews.json', reviews.filter(r => r.id !== id));
-  } else {
-    reviews.forEach(r => { if (r.id === id) r.status = action; });
-    writeAndBackup('reviews.json', reviews);
-  }
-  res.json({ ok: true });
+app.post('/api/admin/review/:id/:action', requireAdmin, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    if (action === 'delete') {
+      await db.collection('reviews').deleteOne({ id });
+    } else {
+      await db.collection('reviews').updateOne({ id }, { $set: { status: action } });
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/announcement', requireAdmin, (req, res) => {
-  const { text, emoji, active, id } = req.body;
-  const items = readJSON('announcements.json') || [];
-  if (id) {
-    // Módosítás
-    items.forEach(a => { if (a.id === id) { a.text = text; a.emoji = emoji; a.active = active === 'true'; }});
-  } else {
-    // Új
-    if (text) items.unshift({ id: uid(), emoji: emoji || '📢', text, active: true, created: now() });
-  }
-  writeAndBackup('announcements.json', items);
-  res.json({ ok: true });
+app.post('/api/admin/announcement', requireAdmin, async (req, res) => {
+  try {
+    const { text, emoji, active, id } = req.body;
+    if (id) {
+      await db.collection('announcements').updateOne({ id }, { $set: { text, emoji, active: active === 'true' } });
+    } else {
+      if (text) await db.collection('announcements').insertOne({ id: uid(), emoji: emoji || '📢', text, active: true, created: now() });
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/announcement/:id/toggle', requireAdmin, (req, res) => {
-  const items = readJSON('announcements.json') || [];
-  items.forEach(a => { if (a.id === req.params.id) a.active = !a.active; });
-  writeAndBackup('announcements.json', items);
-  res.json({ ok: true });
+app.post('/api/admin/announcement/:id/toggle', requireAdmin, async (req, res) => {
+  try {
+    const item = await db.collection('announcements').findOne({ id: req.params.id });
+    if (item) await db.collection('announcements').updateOne({ id: req.params.id }, { $set: { active: !item.active } });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/admin/announcement/:id', requireAdmin, (req, res) => {
-  const items = readJSON('announcements.json') || [];
-  writeAndBackup('announcements.json', items.filter(a => a.id !== req.params.id));
-  res.json({ ok: true });
+app.delete('/api/admin/announcement/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.collection('announcements').deleteOne({ id: req.params.id });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/prize/:id/done', requireAdmin, (req, res) => {
-  const prizes = readJSON('prizes.json') || [];
-  prizes.forEach(p => { if (p.id === req.params.id) p.status = 'done'; });
-  writeAndBackup('prizes.json', prizes);
-  res.json({ ok: true });
+app.post('/api/admin/prize/:id/done', requireAdmin, async (req, res) => {
+  try {
+    await db.collection('prizes').updateOne({ id: req.params.id }, { $set: { status: 'done' } });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/password', requireAdmin, (req, res) => {
-  const config = readJSON('config.json');
-  if (req.body.new_password && req.body.new_password.length >= 4) {
-    config.password = req.body.new_password;
-    writeJSON('config.json', config);
-  }
-  res.json({ ok: true });
+app.post('/api/admin/password', requireAdmin, async (req, res) => {
+  try {
+    if (req.body.new_password && req.body.new_password.length >= 4) {
+      await db.collection('config').updateOne({ key: 'admin' }, { $set: { password: req.body.new_password } });
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Spin timeout kezelés (szerver oldali)
+// Spin timeout kezelés
 const spinTimeouts = {};
 
 app.post('/api/spin/register', (req, res) => {
@@ -270,34 +241,10 @@ app.post('/api/admin/spin-reset/:name', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => console.log(`PowerPulse fut: http://localhost:${PORT}`));
-
-// ===== STARTUP: Visszatöltés GitHub-ból =====
-async function restoreFromGithub(filename) {
-  if (!GH_TOKEN) return;
-  try {
-    const res = await fetch(
-      `https://api.github.com/repos/${GH_REPO}/contents/data/${filename}`,
-      { headers: { 'Authorization': `token ${GH_TOKEN}`, 'User-Agent': 'PowerPulse', 'Accept': 'application/vnd.github.v3+json' } }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data.content) {
-        const content = Buffer.from(data.content, 'base64').toString('utf8');
-        fs.writeFileSync(path.join(DATA_DIR, filename), content);
-        console.log(`✅ Visszaállítva: ${filename}`);
-      }
-    }
-  } catch(e) { console.log(`Restore skip (${filename}): ${e.message}`); }
-}
-
-// Induláskor visszatöltés
-(async () => {
-  console.log('🔄 GitHub backup visszatöltése...');
-  await restoreFromGithub('bookings.json');
-  await restoreFromGithub('reviews.json');
-  await restoreFromGithub('prizes.json');
-  await restoreFromGithub('announcements.json');
-  await restoreFromGithub('config.json');
-  console.log('✅ Visszatöltés kész!');
-})();
+// ===== INDÍTÁS =====
+connectDB().then(() => {
+  app.listen(PORT, () => console.log(`🚀 PowerPulse fut: http://localhost:${PORT}`));
+}).catch(err => {
+  console.error('❌ MongoDB kapcsolódási hiba:', err);
+  process.exit(1);
+});
