@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerPulse ECU — Belépés</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a1a; font-family:'Space Grotesk',sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+canvas { position:fixed; inset:0; z-index:0; }
+.container { position:relative; z-index:1; width:100%; max-width:420px; }
+.logo { text-align:center; margin-bottom:32px; }
+.logo h1 { color:#f59e0b; font-size:2rem; font-weight:700; }
+.logo p { color:#555580; font-size:0.9rem; margin-top:4px; }
+.card { background:rgba(12,12,30,0.95); border:1.5px solid rgba(245,158,11,0.3); border-radius:20px; padding:36px 32px; box-shadow:0 0 60px rgba(245,158,11,0.1); }
+.tabs { display:flex; gap:8px; margin-bottom:28px; background:rgba(255,255,255,0.05); border-radius:10px; padding:4px; }
+.tab { flex:1; padding:10px; border:none; background:transparent; color:#888; font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:600; border-radius:8px; cursor:pointer; transition:.2s; }
+.tab.active { background:#f59e0b; color:#0a0a1a; }
+.form-group { margin-bottom:16px; }
+label { display:block; color:#888; font-size:0.85rem; margin-bottom:6px; font-weight:500; }
+input { width:100%; padding:12px 16px; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.1); border-radius:10px; color:#fff; font-family:'Space Grotesk',sans-serif; font-size:1rem; transition:.2s; }
+input:focus { outline:none; border-color:#f59e0b; background:rgba(245,158,11,0.05); }
+.btn { width:100%; padding:14px; background:#f59e0b; color:#0a0a1a; border:none; border-radius:10px; font-family:'Space Grotesk',sans-serif; font-size:1rem; font-weight:700; cursor:pointer; transition:.2s; margin-top:8px; }
+.btn:hover { background:#fbbf24; transform:translateY(-1px); }
+.btn:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+.msg { padding:12px 16px; border-radius:10px; font-size:0.9rem; margin-bottom:16px; display:none; }
+.msg.error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; }
+.msg.success { background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#4ade80; }
+.msg.show { display:block; }
+.divider { text-align:center; color:#444; font-size:0.85rem; margin:16px 0; }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="container">
+  <div class="logo">
+    <h1>⚡ PowerPulse ECU</h1>
+    <p>SeeCity legjobb ECU tuning szolgáltatása</p>
+  </div>
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')">Bejelentkezés</button>
+      <button class="tab" onclick="switchTab('register')">Regisztráció</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-form">
+      <div id="login-msg" class="msg"></div>
+      <div class="form-group">
+        <label>IC Név</label>
+        <input type="text" id="login-ic" placeholder="Pl. Joshua_Kullar" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Jelszó</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn" onclick="doLogin()">Bejelentkezés →</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="register-form" style="display:none">
+      <div id="register-msg" class="msg"></div>
+      <div class="form-group">
+        <label>IC Név *</label>
+        <input type="text" id="reg-ic" placeholder="Ahogy a szerveren látható">
+      </div>
+      <div class="form-group">
+        <label>Discord felhasználónév *</label>
+        <input type="text" id="reg-discord" placeholder="Pl. joshua_kullár">
+      </div>
+      <div class="form-group">
+        <label>Email cím *</label>
+        <input type="email" id="reg-email" placeholder="email@example.com">
+      </div>
+      <div class="form-group">
+        <label>Jelszó * (min. 6 karakter)</label>
+        <input type="password" id="reg-pass" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Jelszó megerősítés *</label>
+        <input type="password" id="reg-pass2" placeholder="••••••••">
+      </div>
+      <button class="btn" onclick="doRegister()">Regisztráció →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Particle háttér
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+const pts = Array.from({length:50},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*2+1}));
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  pts.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0||p.x>canvas.width)p.vx*=-1;
+    if(p.y<0||p.y>canvas.height)p.vy*=-1;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle='rgba(245,158,11,0.25)'; ctx.fill();
+  });
+  requestAnimationFrame(draw);
+}
+draw();
+
+// URL paraméterek
+const params = new URLSearchParams(window.location.search);
+if (params.get('verified') === '1') showMsg('login-msg', '✅ Email megerősítve! Mostmár bejelentkezhetsz.', 'success');
+if (params.get('error') === 'invalid_token') showMsg('login-msg', '❌ Érvénytelen vagy lejárt megerősítő link!', 'error');
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `msg ${type} show`;
+}
+
+async function doLogin() {
+  const ic_name = document.getElementById('login-ic').value.trim();
+  const password = document.getElementById('login-pass').value;
+  if (!ic_name || !password) return showMsg('login-msg', 'Töltsd ki az összes mezőt!', 'error');
+
+  const btn = document.querySelector('#login-form .btn');
+  btn.disabled = true; btn.textContent = 'Bejelentkezés...';
+
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `ic_name=${encodeURIComponent(ic_name)}&password=${encodeURIComponent(password)}`
+  });
+  const data = await res.json();
+  btn.disabled = false; btn.textContent = 'Bejelentkezés →';
+
+  if (data.ok) {
+    showMsg('login-msg', `✅ Sikeres bejelentkezés! Átirányítás...`, 'success');
+    setTimeout(() => window.location.href = '/', 1000);
+  } else {
+    showMsg('login-msg', '❌ ' + data.error, 'error');
+  }
+}
+
+async function doRegister() {
+  const ic_name = document.getElementById('reg-ic').value.trim();
+  const discord = document.getElementById('reg-discord').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-pass').value;
+  const pass2 = document.getElementById('reg-pass2').value;
+
+  if (!ic_name || !discord || !email || !password) return showMsg('register-msg', 'Töltsd ki az összes mezőt!', 'error');
+  if (password !== pass2) return showMsg('register-msg', 'A két jelszó nem egyezik!', 'error');
+  if (password.length < 6) return showMsg('register-msg', 'A jelszó legalább 6 karakter legyen!', 'error');
+
+  const btn = document.querySelector('#register-form .btn');
+  btn.disabled = true; btn.textContent = 'Regisztráció...';
+
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `ic_name=${encodeURIComponent(ic_name)}&discord=${encodeURIComponent(discord)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+  });
+  const data = await res.json();
+  btn.disabled = false; btn.textContent = 'Regisztráció →';
+
+  if (data.ok) {
+    showMsg('register-msg', '✅ ' + data.message, 'success');
+    document.getElementById('reg-ic').value = '';
+    document.getElementById('reg-discord').value = '';
+    document.getElementById('reg-email').value = '';
+    document.getElementById('reg-pass').value = '';
+    document.getElementById('reg-pass2').value = '';
+  } else {
+    showMsg('register-msg', '❌ ' + data.error, 'error');
+  }
+}
+
+// Enter billentyű
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (document.getElementById('login-form').style.display !== 'none') doLogin();
+    else doRegister();
+  }
+});
+</script>
+</body>
+</html>
