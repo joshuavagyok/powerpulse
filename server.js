@@ -718,17 +718,44 @@ app.post('/api/admin/countdown', requireAdmin, async (req, res) => {
 // ===== SEECITY SZERVER STÁTUSZ =====
 app.get('/api/seecity/status', async (req, res) => {
   try {
-    // SA-MP / MTA szerver státusz lekérése
-    const r = await fetch('https://api.samp-servers.net/v2-0/server/185.161.208.87:22003', {
-      headers: { 'User-Agent': 'PowerPulse/1.0' }
-    }).catch(() => null);
-    if (!r || !r.ok) {
-      return res.json({ online: false, players: 0, max: 0, name: 'SeeCity', error: 'timeout' });
-    }
-    const data = await r.json();
-    res.json({ online: true, players: data.pc || 0, max: data.pm || 100, name: data.hn || 'SeeCity' });
+    // app.see-game.com HTML scraping (lejárt cert → rejectUnauthorized: false)
+    const https = require('https');
+    const html = await new Promise((resolve, reject) => {
+      const req2 = https.get('https://app.see-game.com/', {
+        rejectUnauthorized: false,
+        headers: { 'User-Agent': 'Mozilla/5.0 PowerPulse/1.0' },
+        timeout: 8000
+      }, (r) => {
+        let data = '';
+        r.on('data', d => data += d);
+        r.on('end', () => resolve(data));
+      });
+      req2.on('error', reject);
+      req2.on('timeout', () => { req2.destroy(); reject(new Error('timeout')); });
+    });
+
+    // Parse: "online: 172" típusú sorok
+    const matches = [...html.matchAll(/online:\s*(\d+)/gi)];
+    const servers = [];
+    const serverNames = [...html.matchAll(/SeeMTA[^<"]{0,20}/g)].map(m => m[0].trim()).filter((v,i,a)=>a.indexOf(v)===i);
+    let total = 0;
+    matches.forEach((m, i) => {
+      const count = parseInt(m[1]);
+      total += count;
+      if (i < serverNames.length) servers.push({ name: serverNames[i], players: count });
+    });
+    // Összesen sor külön is megjelenik — ne számoljuk kétszer
+    const totalMatch = html.match(/Összesen online:\s*(\d+)/i);
+    const totalPlayers = totalMatch ? parseInt(totalMatch[1]) : total;
+
+    res.json({
+      online: totalPlayers > 0,
+      players: totalPlayers,
+      servers,
+      source: 'app.see-game.com'
+    });
   } catch(e) {
-    res.json({ online: false, players: 0, max: 0, name: 'SeeCity' });
+    res.json({ online: false, players: 0, servers: [], error: e.message });
   }
 });
 
