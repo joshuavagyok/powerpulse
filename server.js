@@ -13,7 +13,7 @@ const GMAIL_USER = process.env.GMAIL_USER || 'powerpulse.ecu@gmail.com';
 const GMAIL_PASS = process.env.GMAIL_PASS || 'ntxd rydu pycu bmca';
 const BREVO_USER = process.env.BREVO_USER || 'a5e3f1001@smtp-brevo.com';
 const _bk = ['xkeys','ib-4c48d77819a70c4d87679254ba458ace0','963b5a753d928ba5b9b38dfe4a5a5bd-6cxnCjDfKhO2moGV'];
-const BREVO_KEY = process.env.BREVO_KEY || _bk.join('');
+const BREVO_KEY = (process.env.BREVO_KEY || _bk.join('')).trim();
 const BASE_URL = process.env.BASE_URL || 'https://powerpulse-thhr.onrender.com';
 
 let db;
