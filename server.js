@@ -12,7 +12,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTM
 const GMAIL_USER = process.env.GMAIL_USER || 'powerpulse.ecu@gmail.com';
 const GMAIL_PASS = process.env.GMAIL_PASS || 'ntxd rydu pycu bmca';
 const BREVO_USER = process.env.BREVO_USER || 'a5e3f1001@smtp-brevo.com';
-const BREVO_KEY = process.env.BREVO_KEY || '';
+const BREVO_KEY = process.env.BREVO_KEY || 'xkeysib-placeholder';
 const BASE_URL = process.env.BASE_URL || 'https://powerpulse-thhr.onrender.com';
 
 let db;
@@ -35,7 +35,7 @@ async function sendEmail(to, subject, html) {
     method: 'POST',
     headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      sender: { name: 'PowerPulse ECU', email: 'powerpulse.ecu@gmail.com' },
+      sender: { name: 'PowerPulse ECU', email: 'josika886@gmail.com' },
       to: [{ email: to }],
       subject,
       htmlContent: html
