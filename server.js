@@ -12,26 +12,43 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTM
 const GMAIL_USER = process.env.GMAIL_USER || 'powerpulse.ecu@gmail.com';
 const GMAIL_PASS = process.env.GMAIL_PASS || 'ntxd rydu pycu bmca';
 const BREVO_USER = process.env.BREVO_USER || 'a5e3f1001@smtp-brevo.com';
-const BREVO_PASS = process.env.BREVO_PASS || '';
+const BREVO_KEY = process.env.BREVO_KEY || '';
 const BASE_URL = process.env.BASE_URL || 'https://powerpulse-thhr.onrender.com';
 
 let db;
 
 // ===== EMAIL =====
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false,
-  auth: { user: BREVO_USER, pass: BREVO_PASS }
-});
+// Brevo API-val küldünk emailt (HTTP, nem SMTP)
+const fetch = require('node-fetch');
+
+async function sendEmail(to, subject, html) {
+  const apiKey = BREVO_KEY || process.env.BREVO_KEY;
+  if (!apiKey) {
+    // Fallback: nodemailer SMTP
+    const transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com', port: 587, secure: false,
+      auth: { user: BREVO_USER, pass: '' }
+    });
+    return transporter.sendMail({ from: `"PowerPulse ECU" <powerpulse.ecu@gmail.com>`, to, subject, html });
+  }
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender: { name: 'PowerPulse ECU', email: 'powerpulse.ecu@gmail.com' },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(JSON.stringify(data));
+  return data;
+}
 
 async function sendVerificationEmail(email, token, ic_name) {
   const link = `${BASE_URL}/api/verify?token=${token}`;
-  await transporter.sendMail({
-    from: `"PowerPulse ECU" <${GMAIL_USER}>`,
-    to: email,
-    subject: '⚡ PowerPulse — Erősítsd meg a fiókodat!',
-    html: `
+  await sendEmail(email, '⚡ PowerPulse — Erősítsd meg a fiókodat!', `
       <div style="font-family:'Segoe UI',sans-serif;background:#0a0a1a;padding:40px;border-radius:16px;max-width:500px;margin:0 auto;">
         <h1 style="color:#f59e0b;font-size:1.8rem;margin-bottom:8px;">⚡ PowerPulse ECU</h1>
         <p style="color:#c0c0d0;font-size:1rem;">Szia <strong style="color:#fff">${ic_name}</strong>!</p>
@@ -42,8 +59,7 @@ async function sendVerificationEmail(email, token, ic_name) {
         <p style="color:#666;font-size:0.85rem;">Ha nem te regisztráltál, hagyd figyelmen kívül ezt az emailt.</p>
         <p style="color:#444;font-size:0.8rem;margin-top:32px;">⚡ PowerPulse ECU — SeeCity legjobb ECU tuning szolgáltatása</p>
       </div>
-    `
-  });
+    `);
 }
 
 // ===== MONGODB =====
