@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
 const webpush = require('web-push');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const multer = require('multer');
 const fs = require('fs');
 
