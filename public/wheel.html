@@ -143,7 +143,9 @@ body.maintenance-mode *:not(#maintenance-overlay):not(#maintenance-overlay *){po
       <span class="logo-text">Power<span class="logo-accent">Pulse</span></span>
     </a>
     <nav class="topbar-nav">
-      <a href="/" class="nav-link">← Vissza</a>
+      <a href="/" class="nav-link">← Főoldal</a>
+      <a href="/profile.html" class="nav-link" id="nav-profile-btn" style="display:none">👤 Profilom</a>
+      <a href="/login.html" class="nav-link" id="nav-login-btn">Bejelentkezés</a>
     </nav>
   </div>
 </header>
@@ -448,6 +450,15 @@ if (!canSpin()) {
 } else {
   document.getElementById('wheel-timer').textContent = '🎰 Ma még nem pörgettél — próbáld ki!';
 }
+
+// Nav auth
+fetch('/api/user/me').then(r=>r.json()).then(me => {
+  if (me && me.ic_name) {
+    document.getElementById('nav-profile-btn').style.display = '';
+    document.getElementById('nav-profile-btn').textContent = '👤 ' + me.ic_name;
+    document.getElementById('nav-login-btn').style.display = 'none';
+  }
+}).catch(()=>{});
 </script>
 </body>
 </html>

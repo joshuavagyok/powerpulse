@@ -121,8 +121,10 @@ document.body.classList.add('maintenance-mode');
     </a>
     <nav class="topbar-nav">
       <a href="/" class="nav-link active">Foglalás</a>
-      <a href="wheel.html" class="nav-link" style="color:var(--accent)">🎰 Szerencsekerék</a>
-      <a href="admin.html" class="nav-link">Admin</a>
+      <a href="/wheel.html" class="nav-link" style="color:var(--accent)">🎰 Szerencsekerék</a>
+      <span id="nav-auth-links">
+        <a href="/login.html" class="nav-link" id="nav-login-btn">Bejelentkezés</a>
+      </span>
     </nav>
   </div>
 </header>
@@ -754,6 +756,15 @@ loadApprovedReviews();
 
 // ===== LÁTOGATÓSZÁMLÁLÓ =====
 fetch("/api/track").catch(()=>{});
+
+// ===== NAV AUTH =====
+fetch('/api/user/me').then(r=>r.json()).then(me => {
+  if (me && me.ic_name) {
+    document.getElementById('nav-auth-links').innerHTML = `
+      <a href="/profile.html" class="nav-link" style="color:var(--accent)">👤 ${me.ic_name}</a>
+      <a href="/api/user/logout" class="nav-link">Kilépés</a>`;
+  }
+}).catch(()=>{});
 
 // ===== VISSZASZÁMLÁLÁS =====
 fetch('/api/countdown').then(r=>r.json()).then(data=>{

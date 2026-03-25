@@ -110,6 +110,11 @@ draw();
 const params = new URLSearchParams(window.location.search);
 if (params.get('verified') === '1') showMsg('login-msg', '✅ Email megerősítve! Mostmár bejelentkezhetsz.', 'success');
 if (params.get('error') === 'invalid_token') showMsg('login-msg', '❌ Érvénytelen vagy lejárt megerősítő link!', 'error');
+// Ha referral kód van → regisztrációs tab
+const refCode = params.get('ref');
+if (refCode) { switchTab('register'); showMsg('register-msg', '🔗 Referral linken érkeztél! Regisztrálj és barátod pontot kap.', 'success'); }
+// Ha már be van lépve → profil
+fetch('/api/user/me').then(r=>r.json()).then(me => { if (me && me.ic_name) window.location.href = '/profile.html'; }).catch(()=>{});
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
@@ -141,7 +146,8 @@ async function doLogin() {
 
   if (data.ok) {
     showMsg('login-msg', `✅ Sikeres bejelentkezés! Átirányítás...`, 'success');
-    setTimeout(() => window.location.href = '/', 1000);
+    const redirect = params.get('redirect') || '/profile.html';
+    setTimeout(() => window.location.href = redirect, 1000);
   } else {
     showMsg('login-msg', '❌ ' + data.error, 'error');
   }
@@ -164,7 +170,7 @@ async function doRegister() {
   const res = await fetch('/api/register', {
     method: 'POST',
     headers: {'Content-Type':'application/x-www-form-urlencoded'},
-    body: `ic_name=${encodeURIComponent(ic_name)}&discord=${encodeURIComponent(discord)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+    body: `ic_name=${encodeURIComponent(ic_name)}&discord=${encodeURIComponent(discord)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&ref=${encodeURIComponent(refCode||'')}`
   });
   const data = await res.json();
   btn.disabled = false; btn.textContent = 'Regisztráció →';

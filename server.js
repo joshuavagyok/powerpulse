@@ -143,16 +143,31 @@ app.post('/api/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const verifyToken = crypto.randomBytes(32).toString('hex');
+    const newUserId = uid();
 
     await db.collection('users').insertOne({
-      id: uid(), ic_name, discord, email,
+      id: newUserId, ic_name, discord, email,
       password: hash,
       verified: false,
       verifyToken,
       banned: false,
       created: now(),
-      lastSpin: null
+      lastSpin: null,
+      referredCount: 0,
+      bonusSpins: 0,
+      loyaltyPoints: 0
     });
+
+    // Referral feldolgozás
+    const ref = req.body.ref;
+    if (ref) {
+      try {
+        const referrerName = Buffer.from(ref + '==', 'base64').toString('utf-8').replace(/[^a-zA-Z0-9_]/g,'');
+        if (referrerName) {
+          await db.collection('users').updateOne({ ic_name: referrerName }, { $inc: { referredCount: 1, bonusSpins: 1 } });
+        }
+      } catch(e) { console.log('Referral hiba:', e.message); }
+    }
 
     // Email szinkron küldés a válasz előtt
     try {
