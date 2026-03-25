@@ -305,6 +305,12 @@ function markSpun() {
 }
 
 function getWinner() {
+  // Demo mód: ?demo=ecu/service/raffle/money URL paraméter
+  const demoParam = new URLSearchParams(window.location.search).get('demo');
+  if (demoParam) {
+    const demoSeg = SEGMENTS.find(s => s.prize === demoParam);
+    if (demoSeg) return demoSeg;
+  }
   const total = SEGMENTS.reduce((s,seg)=>s+seg.prob,0);
   let rand = Math.random() * total;
   for (const seg of SEGMENTS) {
