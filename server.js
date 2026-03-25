@@ -699,195 +699,287 @@ async function generateSimpleCertPNG(booking, res) {
 }
 
 async function generateServiceCertPNG(cert, res) {
-  const W = 1240, H = 900;
+  // A4 arány: 794x1123px (96dpi) — fehér, professzionális garancialevél
+  const W = 794, H = 1123;
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
 
-  // Háttér
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#080812'); bg.addColorStop(0.5, '#0d0d22'); bg.addColorStop(1, '#080812');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  // === FEHÉR HÁTTÉR ===
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
 
-  // Sarok ragyogás
-  [[0,0],[W,0],[0,H],[W,H]].forEach(([x,y]) => {
-    const g = ctx.createRadialGradient(x,y,0,x,y,280);
-    g.addColorStop(0,'rgba(245,158,11,0.07)'); g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  });
+  // === FEJLÉC SÁV (sötét) ===
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, 130);
 
-  // Külső keret arany
-  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=3;
-  ctx.strokeRect(20,20,W-40,H-40);
-  ctx.strokeStyle='rgba(245,158,11,0.2)'; ctx.lineWidth=1;
-  ctx.strokeRect(30,30,W-60,H-60);
+  // Fejléc arany sáv alján
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(0, 128, W, 4);
 
-  // Sarok kis díszek
-  [[20,20],[W-20,20],[20,H-20],[W-20,H-20]].forEach(([x,y]) => {
-    ctx.fillStyle='#f59e0b'; ctx.fillRect(x-7,y-7,14,14);
-  });
+  // Logo szöveg a fejlécben
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 32px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('⚡ PowerPulse ECU', 36, 58);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '13px Arial';
+  ctx.fillText('Hivatalos ECU Tuning Szakszerviz — SeeCity MTA', 36, 80);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '11px Arial';
+  ctx.fillText('powerpulse-thhr.onrender.com', 36, 100);
 
-  // Bal oldal — fotó terület (ha van)
+  // Fejléc jobb: GARANCIALEVÉL felirat
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText('GARANCIALEVÉL', W-36, 52);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '11px Arial';
+  ctx.fillText(`Azonosító: ${cert.certId}`, W-36, 72);
+  ctx.fillText(`Kiállítva: ${cert.created}`, W-36, 88);
+  ctx.fillText(`Garancia: ${cert.guaranteeUntil}-ig`, W-36, 104);
+
+  // === FOTÓ (ha van) — jobb felső sarok ===
   const hasPhoto = cert.photoData && cert.photoData.length > 0;
-  const photoW = 420, photoH = 310, photoX = 50, photoY = 130;
+  const photoW = 210, photoH = 155, photoX = W-36-photoW, photoY = 148;
 
   if (hasPhoto) {
     try {
       const imgBuf = Buffer.from(cert.photoData, 'base64');
       const img = await loadImage(imgBuf);
-      // Fotó kerettel
       ctx.save();
       ctx.beginPath();
-      ctx.roundRect(photoX, photoY, photoW, photoH, 10);
+      ctx.roundRect(photoX, photoY, photoW, photoH, 6);
       ctx.clip();
-      // Arány tartó kitöltés
       const scale = Math.max(photoW/img.width, photoH/img.height);
       const sw = img.width*scale, sh = img.height*scale;
       ctx.drawImage(img, photoX+(photoW-sw)/2, photoY+(photoH-sh)/2, sw, sh);
       ctx.restore();
-      // Keret
-      ctx.strokeStyle='rgba(245,158,11,0.5)'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.roundRect(photoX,photoY,photoW,photoH,10); ctx.stroke();
-      // "Fotó" felirat
-      ctx.fillStyle='rgba(245,158,11,0.6)'; ctx.font='11px Arial'; ctx.textAlign='left';
-      ctx.fillText('📸 ECU beállítás fotó', photoX, photoY-8);
-    } catch(e) { console.log('Fotó betöltési hiba:', e.message); }
-  } else {
-    // Placeholder
-    ctx.fillStyle='rgba(245,158,11,0.04)';
-    ctx.strokeStyle='rgba(245,158,11,0.15)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.roundRect(photoX,photoY,photoW,photoH,10); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='rgba(245,158,11,0.2)'; ctx.font='48px Arial'; ctx.textAlign='center';
-    ctx.fillText('⚡', photoX+photoW/2, photoY+photoH/2+18);
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(photoX, photoY, photoW, photoH, 6);
+      ctx.stroke();
+      ctx.fillStyle = '#999';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('ECU beállítás fotó', photoX+photoW/2, photoY+photoH+14);
+    } catch(e) {}
   }
 
-  // LE adatok bal oldal alatt
-  if (cert.hp_before || cert.hp_after) {
-    const barY = photoY + photoH + 24;
-    ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.strokeStyle='rgba(245,158,11,0.15)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.roundRect(photoX, barY, photoW, 80, 8); ctx.fill(); ctx.stroke();
+  // === FŐ TARTALOM ===
+  const lx = 36; // bal margin
+  let y = 160;
 
-    ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='12px Arial'; ctx.textAlign='center';
-    ctx.fillText('TELJESÍTMÉNY', photoX+photoW/2, barY+18);
+  // --- ÜGYFÉL + JÁRMŰ ADATOK ---
+  ctx.fillStyle = '#0a0a1a';
+  ctx.font = 'bold 11px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('ÜGYFÉL / JÁRMŰ ADATAI', lx, y);
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(lx, y+4, 60, 2);
+  y += 22;
 
-    if (cert.hp_before && cert.hp_after) {
-      ctx.fillStyle='#888'; ctx.font='bold 28px Arial'; ctx.textAlign='left';
-      ctx.fillText(cert.hp_before+' LE', photoX+20, barY+58);
-      ctx.fillStyle='#f59e0b'; ctx.font='bold 20px Arial'; ctx.textAlign='center';
-      ctx.fillText('→', photoX+photoW/2, barY+55);
-      ctx.fillStyle='#4ade80'; ctx.font='bold 28px Arial'; ctx.textAlign='right';
-      ctx.fillText(cert.hp_after+' LE', photoX+photoW-20, barY+58);
-    } else {
-      ctx.fillStyle='#f59e0b'; ctx.font='bold 26px Arial'; ctx.textAlign='center';
-      ctx.fillText((cert.hp_after||cert.hp_before)+' LE', photoX+photoW/2, barY+55);
+  // Vonalak
+  const drawRow = (label, value, yPos, highlight=false) => {
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(lx, yPos, 490, 28);
+    ctx.strokeStyle = '#e5e5e5';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(lx, yPos, 490, 28);
+    ctx.fillStyle = '#888';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, lx+8, yPos+11);
+    ctx.fillStyle = highlight ? '#0a0a1a' : '#1a1a1a';
+    ctx.font = highlight ? 'bold 13px Arial' : '12px Arial';
+    ctx.fillText(value, lx+8, yPos+24);
+  };
+
+  drawRow('ÜGYFÉL IC NEVE', cert.ic_name, y, true); y += 32;
+  drawRow('JÁRMŰ', cert.car, y, true); y += 32;
+  drawRow('ELVÉGZETT SZOLGÁLTATÁS', cert.ecu_map || 'Egyedi ECU Map', y, true); y += 40;
+
+  // --- TELJESÍTMÉNY ADATOK ---
+  if (cert.hp_before || cert.hp_after || cert.torque_before || cert.torque_after) {
+    ctx.fillStyle = '#0a0a1a';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillText('TELJESÍTMÉNY ADATOK', lx, y);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(lx, y+4, 60, 2);
+    y += 20;
+
+    // LE tábla
+    if (cert.hp_before || cert.hp_after) {
+      ctx.fillStyle = '#fff8e7';
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(lx, y, 228, 60, 6);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.textAlign = 'left';
+      ctx.fillText('TELJESÍTMÉNY (LE)', lx+12, y+14);
+
+      if (cert.hp_before && cert.hp_after) {
+        ctx.fillStyle = '#999'; ctx.font = '12px Arial';
+        ctx.fillText(`${cert.hp_before} LE`, lx+12, y+42);
+        ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 16px Arial';
+        ctx.fillText('→', lx+80, y+42);
+        ctx.fillStyle = '#16a34a'; ctx.font = 'bold 22px Arial';
+        ctx.fillText(`${cert.hp_after} LE`, lx+105, y+44);
+        // Növekedés
+        const diff = parseInt(cert.hp_after) - parseInt(cert.hp_before);
+        if (diff > 0) {
+          ctx.fillStyle = '#16a34a'; ctx.font = 'bold 11px Arial';
+          ctx.fillText(`+${diff} LE`, lx+195, y+38);
+        }
+      } else {
+        ctx.fillStyle = '#0a0a1a'; ctx.font = 'bold 22px Arial';
+        ctx.fillText(`${cert.hp_after||cert.hp_before} LE`, lx+12, y+44);
+      }
     }
+
+    // Nm tábla
+    if (cert.torque_before || cert.torque_after) {
+      const nmX = lx + 240;
+      ctx.fillStyle = '#f0f7ff';
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(nmX, y, 228, 60, 6);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.textAlign = 'left';
+      ctx.fillText('NYOMATÉK (Nm)', nmX+12, y+14);
+
+      if (cert.torque_before && cert.torque_after) {
+        ctx.fillStyle = '#999'; ctx.font = '12px Arial';
+        ctx.fillText(`${cert.torque_before} Nm`, nmX+12, y+42);
+        ctx.fillStyle = '#6366f1'; ctx.font = 'bold 16px Arial';
+        ctx.fillText('→', nmX+80, y+42);
+        ctx.fillStyle = '#16a34a'; ctx.font = 'bold 22px Arial';
+        ctx.fillText(`${cert.torque_after} Nm`, nmX+105, y+44);
+        const diff2 = parseInt(cert.torque_after) - parseInt(cert.torque_before);
+        if (diff2 > 0) {
+          ctx.fillStyle = '#16a34a'; ctx.font = 'bold 11px Arial';
+          ctx.fillText(`+${diff2} Nm`, nmX+195, y+38);
+        }
+      } else {
+        ctx.fillStyle = '#0a0a1a'; ctx.font = 'bold 22px Arial';
+        ctx.fillText(`${cert.torque_after||cert.torque_before} Nm`, nmX+12, y+44);
+      }
+    }
+    y += 76;
   }
 
-  // Nm adatok
-  if (cert.torque_before || cert.torque_after) {
-    const tY = photoY + photoH + 118;
-    ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.strokeStyle='rgba(245,158,11,0.1)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.roundRect(photoX, tY, photoW, 56, 8); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='11px Arial'; ctx.textAlign='center';
-    ctx.fillText('NYOMATÉK', photoX+photoW/2, tY+15);
-    const torqText = cert.torque_before && cert.torque_after
-      ? `${cert.torque_before} Nm  →  ${cert.torque_after} Nm`
-      : `${cert.torque_after||cert.torque_before} Nm`;
-    ctx.fillStyle='#a5b4fc'; ctx.font='bold 20px Arial';
-    ctx.fillText(torqText, photoX+photoW/2, tY+42);
-  }
-
-  // JOB OLDAL — fő adatok
-  const rx = 510, ry = 55;
-
-  // Logo
-  ctx.fillStyle='#f59e0b'; ctx.font='bold 42px Arial'; ctx.textAlign='left';
-  ctx.fillText('⚡ PowerPulse ECU', rx, ry+42);
-  ctx.fillStyle='rgba(245,158,11,0.4)'; ctx.font='14px Arial';
-  ctx.fillText('S Z E R V I Z   I G A Z O L V Á N Y', rx, ry+66);
-
-  // Vonal
-  ctx.strokeStyle='rgba(245,158,11,0.3)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(rx, ry+78); ctx.lineTo(W-50, ry+78); ctx.stroke();
-
-  // IC Név
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='13px Arial';
-  ctx.fillText('TULAJDONOS', rx, ry+108);
-  ctx.fillStyle='#ffffff'; ctx.font='bold 44px Arial';
-  ctx.fillText(cert.ic_name, rx, ry+158);
-
-  // Autó
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='13px Arial';
-  ctx.fillText('JÁRMŰ', rx, ry+188);
-  ctx.fillStyle='#f59e0b'; ctx.font='bold 28px Arial';
-  ctx.fillText('🚗  ' + cert.car, rx, ry+222);
-
-  // Elválasztó
-  ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(rx, ry+238); ctx.lineTo(W-50, ry+238); ctx.stroke();
-
-  // ECU map
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='13px Arial';
-  ctx.fillText('ECU BEÁLLÍTÁS', rx, ry+268);
-  ctx.fillStyle='#a5b4fc'; ctx.font='bold 26px Arial';
-  ctx.fillText('⚡  ' + (cert.ecu_map || 'Egyedi ECU Map'), rx, ry+300);
-
-  // Elvégzett munka / megjegyzés
+  // --- ELVÉGZETT MUNKÁK ---
   if (cert.notes) {
-    ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='13px Arial';
-    ctx.fillText('ELVÉGZETT MUNKÁK', rx, ry+334);
-    ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.font='15px Arial';
-    // Sortörés kezelés (max 2 sor)
+    ctx.fillStyle = '#0a0a1a';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillText('ELVÉGZETT MUNKÁK / MEGJEGYZÉS', lx, y);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(lx, y+4, 60, 2);
+    y += 18;
+
+    ctx.fillStyle = '#fafafa';
+    ctx.strokeStyle = '#e5e5e5';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(lx, y, 490, 52, 4);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#1a1a1a'; ctx.font = '12px Arial'; ctx.textAlign = 'left';
+    // Sortörés
     const words = cert.notes.split(' ');
     let line = '', lines = [];
     for (const w of words) {
       const test = line + w + ' ';
-      if (ctx.measureText(test).width > 680 && line) { lines.push(line.trim()); line = w + ' '; }
+      if (ctx.measureText(test).width > 470 && line) { lines.push(line.trim()); line = w + ' '; }
       else line = test;
     }
     if (line) lines.push(line.trim());
-    lines.slice(0,3).forEach((l,i) => ctx.fillText(l, rx, ry+358+i*22));
+    lines.slice(0,3).forEach((l,i) => ctx.fillText(l, lx+10, y+17+i*17));
+    y += 64;
   }
 
-  // Garancia doboz
-  const gY = H - 195;
-  ctx.fillStyle='rgba(34,197,94,0.06)'; ctx.strokeStyle='rgba(34,197,94,0.3)'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.roundRect(rx, gY, W-rx-50, 80, 10); ctx.fill(); ctx.stroke();
-  ctx.fillStyle='#4ade80'; ctx.font='bold 16px Arial'; ctx.textAlign='left';
-  ctx.fillText('✅ GARANCIÁLIS IDŐSZAK — 2 HÉT', rx+20, gY+26);
-  ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='14px Arial';
-  ctx.fillText(`Garancia lejárta: ${cert.guaranteeUntil}`, rx+20, gY+50);
-  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='12px Arial';
-  ctx.fillText('Ha problémát tapasztalsz, vedd fel velünk a kapcsolatot Discord-on!', rx+20, gY+68);
+  y += 12;
 
-  // Cert ID + dátum
-  ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='12px Arial'; ctx.textAlign='left';
-  ctx.fillText(`Igazolvány ID: ${cert.certId}`, rx, H-90);
-  ctx.fillText(`Kiállítva: ${cert.created}`, rx, H-70);
+  // === GARANCIA DOBOZ ===
+  ctx.fillStyle = '#f0fdf4';
+  ctx.strokeStyle = '#16a34a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(lx, y, 490, 120, 8);
+  ctx.fill(); ctx.stroke();
 
-  // Pecsét
-  ctx.beginPath(); ctx.arc(W-90, H-90, 52, 0, Math.PI*2);
-  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(W-90, H-90, 44, 0, Math.PI*2);
-  ctx.strokeStyle='rgba(245,158,11,0.35)'; ctx.lineWidth=1; ctx.stroke();
-  ctx.fillStyle='#f59e0b'; ctx.font='bold 24px Arial'; ctx.textAlign='center';
-  ctx.fillText('⚡', W-90, H-84);
-  ctx.font='9px Arial'; ctx.fillStyle='rgba(245,158,11,0.8)';
-  ctx.fillText('HITELESÍTVE', W-90, H-66);
+  // Zöld fejléc sáv
+  ctx.fillStyle = '#16a34a';
+  ctx.beginPath();
+  ctx.roundRect(lx, y, 490, 32, [8,8,0,0]);
+  ctx.fill();
 
-  // Aláírás
-  ctx.strokeStyle='rgba(245,158,11,0.4)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(rx, H-55); ctx.lineTo(rx+220, H-55); ctx.stroke();
-  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='12px Arial'; ctx.textAlign='left';
-  ctx.fillText('Joshua — PowerPulse ECU', rx, H-40);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'left';
+  ctx.fillText('✅  GARANCIALEVÉL FELTÉTELEI', lx+14, y+21);
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText(`Érvényes: ${cert.guaranteeUntil}-ig`, lx+476, y+21);
 
-  // Footer
-  ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.font='11px Arial'; ctx.textAlign='center';
-  ctx.fillText('powerpulse-thhr.onrender.com  ·  SeeCity MTA  ·  © 2026 PowerPulse ECU', W/2, H-18);
+  y += 40;
+  ctx.fillStyle = '#1a1a1a'; ctx.font = '12px Arial'; ctx.textAlign = 'left';
+  ctx.fillText('• A garancia az elvégzett ECU tuning szolgáltatásra vonatkozik.', lx+14, y+8);
+  ctx.fillText('• Érvényességi idő: 2 hét (14 nap) a kiállítás napjától számítva.', lx+14, y+24);
+  ctx.fillStyle = '#dc2626'; ctx.font = 'bold 12px Arial';
+  ctx.fillText('• FIGYELEM: Ha az ECU-hoz bárki más hozzányúl, a garancia azonnal', lx+14, y+40);
+  ctx.fillText('  érvényét veszíti — kivizsgálás nélkül!', lx+14, y+56);
+  ctx.fillStyle = '#1a1a1a'; ctx.font = '12px Arial';
+  ctx.fillText('• Problémák esetén fordulj Joshuához Discordon!', lx+14, y+72);
+
+  y += 100;
+
+  // === ALÁÍRÁS + PECSÉT SOR ===
+  y += 10;
+
+  // Bal: aláírás
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(lx, y+50); ctx.lineTo(lx+200, y+50); ctx.stroke();
+  ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.textAlign = 'left';
+  ctx.fillText('Kiállító aláírása', lx, y+63);
+  ctx.fillStyle = '#0a0a1a'; ctx.font = 'bold 13px Arial';
+  ctx.fillText('Joshua', lx, y+47);
+  ctx.fillStyle = '#888'; ctx.font = '10px Arial';
+  ctx.fillText('PowerPulse ECU — Vezető szerelő', lx, y+76);
+
+  // Jobb: kerek pecsét
+  const sx = W-36-65, sy = y+5;
+  ctx.beginPath(); ctx.arc(sx, sy+45, 52, 0, Math.PI*2);
+  ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.strokeStyle = '#0a0a1a'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(sx, sy+45, 44, 0, Math.PI*2);
+  ctx.strokeStyle = '#0a0a1a'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath(); ctx.arc(sx, sy+45, 36, 0, Math.PI*2);
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1; ctx.stroke();
+
+  ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+  ctx.fillText('⚡', sx, sy+43);
+  ctx.fillStyle = '#0a0a1a'; ctx.font = 'bold 7.5px Arial';
+  ctx.fillText('POWERPULSE ECU', sx, sy+58);
+  ctx.fillStyle = '#888'; ctx.font = '7px Arial';
+  ctx.fillText('SEECITY • HITELESÍTVE', sx, sy+68);
+
+  // === LÁB SÁV ===
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, H-36, W, 36);
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(0, H-36, W, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
+  ctx.fillText(`Igazolvány azonosító: ${cert.certId}  ·  powerpulse-thhr.onrender.com  ·  © 2026 PowerPulse ECU  ·  SeeCity MTA`, W/2, H-14);
 
   res.setHeader('Content-Type', 'image/png');
-  res.setHeader('Content-Disposition', `attachment; filename="Szerviz-Igazolvany-${cert.ic_name.replace(/\s+/g,'_')}-${cert.certId}.png"`);
+  res.setHeader('Content-Disposition', `attachment; filename="Garancialevél-${cert.ic_name.replace(/\s+/g,'_')}-${cert.certId}.png"`);
   canvas.createPNGStream().pipe(res);
 }
+
 
 // ===== TUNING IGAZOLÁS GENERÁTOR (egyszerű, régi) =====
 app.get('/api/certificate/:bookingId', async (req, res) => {
