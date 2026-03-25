@@ -946,9 +946,9 @@ async function generateServiceCertPNG(cert, res) {
   ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.textAlign = 'left';
   ctx.fillText('Kiállító aláírása', lx, y+63);
   ctx.fillStyle = '#0a0a1a'; ctx.font = 'bold 13px Arial';
-  ctx.fillText('Joshua', lx, y+47);
+  ctx.fillText('Zane Bishop', lx, y+47);
   ctx.fillStyle = '#888'; ctx.font = '10px Arial';
-  ctx.fillText('PowerPulse ECU — Vezető szerelő', lx, y+76);
+  ctx.fillText('PowerPulse ECU — Tulajdonos', lx, y+76);
 
   // Jobb: kerek pecsét
   const sx = W-36-65, sy = y+5;
@@ -1108,7 +1108,7 @@ app.get('/api/certificate/:bookingId', async (req, res) => {
     ctx.fillText(`Discord: ${booking.discord}`, boxX+30, boxY+60);
     ctx.fillText(`Dátum: ${booking.created}`, boxX+30, boxY+85);
     ctx.textAlign = 'right';
-    ctx.fillText('Kiállította: Joshua (PowerPulse ECU)', boxX+boxW-30, boxY+85);
+    ctx.fillText('Kiállította: Zane Bishop (PowerPulse ECU)', boxX+boxW-30, boxY+85);
 
     // Aláírás vonal
     ctx.strokeStyle = 'rgba(245,158,11,0.4)';
@@ -1120,7 +1120,7 @@ app.get('/api/certificate/:bookingId', async (req, res) => {
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.font = '14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Joshua — PowerPulse ECU', W-225, 710);
+    ctx.fillText('Zane Bishop — PowerPulse ECU', W-225, 710);
 
     // Bal oldali pecsét kör
     ctx.beginPath();
