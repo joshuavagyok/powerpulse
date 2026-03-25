@@ -264,7 +264,8 @@ async function loadData() {
             ${b.status!=='accepted'?`<button class="action-btn accept" onclick="bookingAction('${b.id}','accepted')">✅ Elfogad</button>`:''}
             ${b.status!=='rejected'?`<button class="action-btn reject" onclick="bookingAction('${b.id}','rejected')">❌ Elutasít</button>`:''}
             ${b.status==='new'?`<button class="action-btn progress" onclick="bookingAction('${b.id}','in_progress')">🔄 Folyamat</button>`:''}
-            ${b.status==='accepted'?`<a class="action-btn cert" href="/api/certificate/${b.id}" target="_blank">📜 Cert</a>`:''}
+            <button class="action-btn cert" onclick="openCertForm('${b.id}','${b.ic_name}','${b.car}')">📜 Igazolvány</button>
+            ${b.certId?`<a class="action-btn" href="/api/servicecert/${b.certId}" target="_blank" style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.25);display:inline-flex;align-items:center;justify-content:center;text-decoration:none">⬇️</a>`:''}
             <button class="action-btn del" onclick="bookingAction('${b.id}','delete')">🗑</button>
           </div>
         </div>`).join('');
@@ -390,6 +391,113 @@ async function togglePush() {
 
 // Enter key login
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+// SZERVIZ IGAZOLVÁNY
+async function openCertForm(bookingId, icName, car) {
+  // Töröljük az esetleges előző modalt
+  document.getElementById('cert-modal')?.remove();
+
+  // Meglévő cert adatok lekérése
+  const existing = await fetch(`/api/admin/servicecert/${bookingId}`).then(r=>r.json()).catch(()=>({exists:false}));
+
+  const modal = document.createElement('div');
+  modal.id = 'cert-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.85);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)';
+  modal.innerHTML = `
+    <div style="background:#0d0d22;border:1.5px solid rgba(245,158,11,0.3);border-radius:20px 20px 0 0;width:100%;max-width:600px;padding:24px;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <h3 style="color:#f59e0b;font-size:1.1rem;margin:0">📜 Szerviz Igazolvány</h3>
+          <p style="color:#666;font-size:.8rem;margin:4px 0 0">${icName} — ${car}</p>
+        </div>
+        <button onclick="document.getElementById('cert-modal').remove()" style="background:rgba(255,255,255,0.06);border:none;color:#888;width:36px;height:36px;border-radius:50%;font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="color:#888;font-size:.78rem;display:block;margin-bottom:4px">ECU Map neve</label>
+          <input id="cert-ecu" type="text" placeholder="pl. Stage 2 Sport" value="${existing.ecu_map||''}" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem">
+        </div>
+        <div>
+          <label style="color:#888;font-size:.78rem;display:block;margin-bottom:4px">LE — előtte / utána</label>
+          <div style="display:flex;gap:6px">
+            <input id="cert-hp-before" type="number" placeholder="280" value="${existing.hp_before||''}" style="width:50%;padding:10px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem">
+            <input id="cert-hp-after" type="number" placeholder="340" value="${existing.hp_after||''}" style="width:50%;padding:10px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="color:#888;font-size:.78rem;display:block;margin-bottom:4px">Nm — előtte / utána</label>
+          <div style="display:flex;gap:6px">
+            <input id="cert-nm-before" type="number" placeholder="380" value="${existing.torque_before||''}" style="width:50%;padding:10px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem">
+            <input id="cert-nm-after" type="number" placeholder="460" value="${existing.torque_after||''}" style="width:50%;padding:10px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem">
+          </div>
+        </div>
+        <div>
+          <label style="color:#888;font-size:.78rem;display:block;margin-bottom:4px">Elvégzett munkák</label>
+          <input id="cert-notes" type="text" placeholder="pl. Légszűrő csere, chip tuning..." value="${existing.notes||''}" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem">
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="color:#888;font-size:.78rem;display:block;margin-bottom:8px">📸 ECU beállítás fotó ${existing.hasPhoto?'<span style="color:#4ade80">(✅ már van feltöltve)</span>':''}</label>
+        <input id="cert-photo" type="file" accept="image/*" capture="environment" style="width:100%;padding:10px;background:rgba(255,255,255,0.04);border:1px dashed rgba(245,158,11,0.3);border-radius:8px;color:#888;font-size:.85rem">
+        <p style="color:#555;font-size:.75rem;margin-top:6px">Fényképezz rá a beállításra — megjelenik az igazolványon. Max 10MB.</p>
+      </div>
+
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:12px;margin-bottom:16px">
+        <p style="color:#4ade80;font-size:.85rem;margin:0">✅ Az igazolvány automatikusan tartalmaz 2 hetes garanciát a kiállítás napjától.</p>
+      </div>
+
+      <button onclick="generateCert('${bookingId}')" style="width:100%;padding:14px;background:#f59e0b;color:#0a0a1a;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;font-family:'Space Grotesk',sans-serif">
+        📜 Igazolvány generálása
+      </button>
+      <div id="cert-status" style="text-align:center;margin-top:12px;font-size:.85rem;display:none"></div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function generateCert(bookingId) {
+  const ecu_map = document.getElementById('cert-ecu').value.trim();
+  const hp_before = document.getElementById('cert-hp-before').value;
+  const hp_after = document.getElementById('cert-hp-after').value;
+  const torque_before = document.getElementById('cert-nm-before').value;
+  const torque_after = document.getElementById('cert-nm-after').value;
+  const notes = document.getElementById('cert-notes').value.trim();
+  const photoFile = document.getElementById('cert-photo').files[0];
+  const statusEl = document.getElementById('cert-status');
+
+  statusEl.style.display = 'block';
+  statusEl.style.color = '#f59e0b';
+  statusEl.textContent = '⏳ Igazolvány generálása folyamatban...';
+
+  const formData = new FormData();
+  formData.append('ecu_map', ecu_map);
+  formData.append('hp_before', hp_before);
+  formData.append('hp_after', hp_after);
+  formData.append('torque_before', torque_before);
+  formData.append('torque_after', torque_after);
+  formData.append('notes', notes);
+  if (photoFile) formData.append('photo', photoFile);
+
+  try {
+    const r = await fetch(`/api/admin/servicecert/${bookingId}`, { method: 'POST', body: formData });
+    const data = await r.json();
+    if (data.ok) {
+      statusEl.style.color = '#4ade80';
+      statusEl.innerHTML = `✅ Igazolvány kész! <a href="${data.downloadUrl}" target="_blank" style="color:#f59e0b;font-weight:700">⬇️ Letöltés</a>`;
+      loadData();
+    } else {
+      statusEl.style.color = '#f87171';
+      statusEl.textContent = '❌ Hiba: ' + data.error;
+    }
+  } catch(e) {
+    statusEl.style.color = '#f87171';
+    statusEl.textContent = '❌ Hiba: ' + e.message;
+  }
+}
 </script>
 </body>
 </html>
