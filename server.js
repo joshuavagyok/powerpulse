@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
 const webpush = require('web-push');
+const { createCanvas, registerFont } = require('canvas');
 
 // VAPID kulcsok (push értesítéshez)
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC || 'BM9hxqJG_w9E8Dls2zsy11Q5zEhppb_ZK4LFQrB2EH6yAWvdlqQ3a2TqZwBetQEYoSn52f7ZNigoNZt4epRNIMM';
@@ -571,6 +572,190 @@ app.post('/api/admin/password', requireAdmin, async (req, res) => {
     }
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== TUNING IGAZOLÁS GENERÁTOR =====
+app.get('/api/certificate/:bookingId', async (req, res) => {
+  try {
+    const booking = await db.collection('bookings').findOne({ id: req.params.bookingId, status: 'accepted' });
+    if (!booking) return res.status(404).json({ error: 'Foglalás nem található vagy még nem lett elfogadva!' });
+
+    const W = 1200, H = 800;
+    const canvas = createCanvas(W, H);
+    const ctx = canvas.getContext('2d');
+
+    // Háttér — sötét gradient
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#0a0a1a');
+    bg.addColorStop(0.5, '#0f0f2e');
+    bg.addColorStop(1, '#0a0a1a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Dekoratív sarokdíszek
+    const corners = [[0,0],[W,0],[0,H],[W,H]];
+    corners.forEach(([x,y]) => {
+      const g = ctx.createRadialGradient(x,y,0,x,y,300);
+      g.addColorStop(0,'rgba(245,158,11,0.08)');
+      g.addColorStop(1,'rgba(245,158,11,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,W,H);
+    });
+
+    // Külső keret
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(24, 24, W-48, H-48);
+
+    // Belső keret
+    ctx.strokeStyle = 'rgba(245,158,11,0.25)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(36, 36, W-72, H-72);
+
+    // Sarokdíszek (kis négyzetek)
+    [[24,24],[W-24,24],[24,H-24],[W-24,H-24]].forEach(([x,y]) => {
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(x-6, y-6, 12, 12);
+    });
+
+    // Vízjel háttér
+    ctx.save();
+    ctx.globalAlpha = 0.04;
+    ctx.font = 'bold 180px Arial';
+    ctx.fillStyle = '#f59e0b';
+    ctx.textAlign = 'center';
+    ctx.translate(W/2, H/2+60);
+    ctx.rotate(-0.3);
+    ctx.fillText('PowerPulse', 0, 0);
+    ctx.restore();
+
+    // Logo + cím
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 52px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡ PowerPulse ECU', W/2, 110);
+
+    ctx.fillStyle = 'rgba(245,158,11,0.5)';
+    ctx.font = '18px Arial';
+    ctx.fillText('S E E C I T Y  ·  H I V A T A L O S  T U N I N G  I G A Z O L Á S', W/2, 145);
+
+    // Elválasztó vonal
+    ctx.strokeStyle = 'rgba(245,158,11,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(80, 165);
+    ctx.lineTo(W-80, 165);
+    ctx.stroke();
+
+    // Tanúsítvány szöveg
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = 'italic 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Ez az igazolás tanúsítja, hogy', W/2, 215);
+
+    // IC Név — nagy, arany
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 64px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(booking.ic_name, W/2, 295);
+
+    // Elválasztó
+    ctx.strokeStyle = 'rgba(245,158,11,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(200, 320);
+    ctx.lineTo(W-200, 320);
+    ctx.stroke();
+
+    // Szöveg
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '20px Arial';
+    ctx.fillText('sikeresen elvégeztette a következő szolgáltatást:', W/2, 360);
+
+    // Szolgáltatás neve
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 38px Arial';
+    ctx.fillText(booking.goal, W/2, 415);
+
+    // Kocsi
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '24px Arial';
+    ctx.fillText(`🚗  ${booking.car}`, W/2, 465);
+
+    // Részletek doboz
+    ctx.fillStyle = 'rgba(245,158,11,0.06)';
+    ctx.strokeStyle = 'rgba(245,158,11,0.2)';
+    ctx.lineWidth = 1;
+    const boxX = 120, boxY = 495, boxW = W-240, boxH = 120;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Cert ID, dátum, Discord
+    const certId = 'PP-' + req.params.bookingId.slice(-8).toUpperCase();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Igazolás ID: ${certId}`, boxX+30, boxY+35);
+    ctx.fillText(`Discord: ${booking.discord}`, boxX+30, boxY+60);
+    ctx.fillText(`Dátum: ${booking.created}`, boxX+30, boxY+85);
+    ctx.textAlign = 'right';
+    ctx.fillText('Kiállította: Joshua (PowerPulse ECU)', boxX+boxW-30, boxY+85);
+
+    // Aláírás vonal
+    ctx.strokeStyle = 'rgba(245,158,11,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(W-350, 690);
+    ctx.lineTo(W-100, 690);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Joshua — PowerPulse ECU', W-225, 710);
+
+    // Bal oldali pecsét kör
+    ctx.beginPath();
+    ctx.arc(180, 680, 55, 0, Math.PI*2);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(180, 680, 48, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(245,158,11,0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡', 180, 672);
+    ctx.font = '10px Arial';
+    ctx.fillStyle = 'rgba(245,158,11,0.8)';
+    ctx.fillText('HITELESÍTVE', 180, 695);
+
+    // Footer
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '13px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('powerpulse-thhr.onrender.com  ·  SeeCity MTA  ·  © 2026 PowerPulse ECU', W/2, 755);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="PowerPulse-${booking.ic_name.replace(/\s+/g,'_')}-${certId}.png"`);
+    canvas.createPNGStream().pipe(res);
+  } catch(e) {
+    console.log('Certificate hiba:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Certificate preview (böngészőben megnyílik, nem letöltés)
+app.get('/api/certificate/:bookingId/view', async (req, res) => {
+  req.url = req.url.replace('/view', '');
+  // Újrahívjuk letöltés nélkül
+  const booking = await db.collection('bookings').findOne({ id: req.params.bookingId, status: 'accepted' }).catch(()=>null);
+  if (!booking) return res.status(404).send('Foglalás nem található vagy még nem elfogadott.');
+  res.redirect(`/api/certificate/${req.params.bookingId}`);
 });
 
 // ===== PUSH ÉRTESÍTÉS =====

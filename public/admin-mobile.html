@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PP Admin">
+<meta name="theme-color" content="#0a0a1a">
+<link rel="manifest" href="/manifest.json">
+<title>PowerPulse Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#0a0a1a;font-family:'Space Grotesk',sans-serif;color:#fff;min-height:100vh;padding-bottom:80px}
+/* LOGIN */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-box{background:rgba(12,12,30,0.98);border:1.5px solid rgba(245,158,11,0.3);border-radius:20px;padding:36px 28px;width:100%;max-width:380px}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo h1{color:#f59e0b;font-size:1.6rem;font-weight:700}
+.login-logo p{color:#555;font-size:.85rem;margin-top:4px}
+input{width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:1rem;margin-bottom:12px}
+input:focus{outline:none;border-color:#f59e0b}
+.btn{width:100%;padding:14px;background:#f59e0b;color:#0a0a1a;border:none;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:700;cursor:pointer}
+.btn:active{opacity:.85}
+.error-msg{color:#f87171;font-size:.85rem;text-align:center;margin-top:8px;display:none}
+/* APP */
+#app{display:none}
+/* TOP BAR */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(10,10,26,0.98);border-bottom:1px solid rgba(245,158,11,0.2);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(10px)}
+.topbar-logo{color:#f59e0b;font-weight:700;font-size:1rem}
+.topbar-badge{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600;display:none}
+/* STATS */
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
+.stat-card{background:rgba(12,12,30,0.9);border:1px solid rgba(245,158,11,0.15);border-radius:12px;padding:16px;text-align:center}
+.stat-val{font-size:1.8rem;font-weight:700;color:#f59e0b}
+.stat-lbl{color:#666;font-size:.75rem;margin-top:4px}
+/* SECTION */
+.section{padding:0 16px 16px}
+.section-title{color:#f59e0b;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-top:4px}
+/* BOOKING CARD */
+.booking-card{background:rgba(12,12,30,0.9);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-bottom:10px;position:relative}
+.booking-card.new{border-color:rgba(245,158,11,0.35)}
+.booking-card.accepted{border-color:rgba(34,197,94,0.25)}
+.booking-card.rejected{border-color:rgba(239,68,68,0.15);opacity:.6}
+.booking-ic{font-weight:700;font-size:1rem;margin-bottom:2px}
+.booking-car{color:#f59e0b;font-size:.85rem;font-weight:600}
+.booking-goal{color:#aaa;font-size:.82rem;margin-top:4px}
+.booking-discord{color:#666;font-size:.78rem;margin-top:2px}
+.booking-date{color:#444;font-size:.75rem;margin-top:6px}
+.booking-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.action-btn{padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;font-family:'Space Grotesk',sans-serif;flex:1;min-width:70px}
+.action-btn.accept{background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3)}
+.action-btn.reject{background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.25)}
+.action-btn.progress{background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25)}
+.action-btn.cert{background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.action-btn.del{background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);max-width:44px}
+.status-badge{position:absolute;top:14px;right:14px;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700}
+.status-badge.new{background:rgba(245,158,11,0.15);color:#f59e0b}
+.status-badge.accepted{background:rgba(34,197,94,0.15);color:#4ade80}
+.status-badge.rejected{background:rgba(239,68,68,0.12);color:#f87171}
+.status-badge.in_progress{background:rgba(99,102,241,0.15);color:#a5b4fc}
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,26,0.98);border-top:1px solid rgba(245,158,11,0.15);display:flex;backdrop-filter:blur(10px);z-index:100}
+.nav-item{flex:1;padding:12px 4px;text-align:center;cursor:pointer;border:none;background:none;color:#555;font-family:'Space Grotesk',sans-serif;font-size:.65rem;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.15s}
+.nav-item.active{color:#f59e0b}
+.nav-item .nav-icon{font-size:1.3rem}
+.nav-item .nav-badge{background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:.6rem;font-weight:700;position:absolute;margin-top:-8px;margin-left:10px}
+/* TABS */
+.tab-content{display:none}
+.tab-content.active{display:block}
+/* USER CARD */
+.user-card{background:rgba(12,12,30,0.9);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.user-avatar{width:42px;height:42px;border-radius:50%;background:rgba(245,158,11,0.15);border:2px solid rgba(245,158,11,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-ic{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-email{color:#555;font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-meta{color:#888;font-size:.72rem;margin-top:2px}
+.user-actions{display:flex;gap:6px;flex-shrink:0}
+.user-btn{padding:6px 10px;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;font-family:'Space Grotesk',sans-serif}
+.user-btn.ban{background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.25)}
+.user-btn.unban{background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.25)}
+/* EMPTY */
+.empty{color:#444;font-size:.9rem;text-align:center;padding:32px 20px}
+/* ANNOUNCE */
+.announce-card{background:rgba(12,12,30,0.9);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.announce-emoji{font-size:1.5rem;flex-shrink:0}
+.announce-text{flex:1;font-size:.88rem;line-height:1.4}
+.announce-toggle{padding:6px 10px;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;font-family:'Space Grotesk',sans-serif}
+/* ADD FORM */
+.add-form{background:rgba(12,12,30,0.9);border:1px solid rgba(245,158,11,0.15);border-radius:14px;padding:16px;margin-bottom:16px}
+.add-form input,.add-form textarea{margin-bottom:10px;font-size:.9rem}
+.add-form textarea{min-height:70px;resize:vertical}
+.add-form .btn{padding:12px}
+/* REFRESH BTN */
+.refresh-btn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);color:#f59e0b;padding:8px 16px;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-view" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>⚡ PowerPulse</h1>
+      <p>Admin — Mobilapp</p>
+    </div>
+    <input type="text" id="login-user" placeholder="Felhasználónév" autocomplete="username">
+    <input type="password" id="login-pass" placeholder="Jelszó" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn" onclick="doLogin()">Belépés →</button>
+    <div id="login-error" class="error-msg">❌ Hibás felhasználónév vagy jelszó!</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <span class="topbar-logo">⚡ PowerPulse Admin</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="new-badge" class="topbar-badge">0 új</span>
+      <button class="refresh-btn" onclick="loadData()">⟳</button>
+    </div>
+  </div>
+
+  <!-- FOGLALÁSOK TAB -->
+  <div id="tab-bookings" class="tab-content active">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" id="s-total">—</div><div class="stat-lbl">Összes</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#22c55e" id="s-new">—</div><div class="stat-lbl">Új / várakozó</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#8b5cf6" id="s-visitors">—</div><div class="stat-lbl">👁 Látogatók</div></div>
+      <div class="stat-card"><div class="stat-val" id="s-users">—</div><div class="stat-lbl">Regisztráltak</div></div>
+    </div>
+    <div class="section">
+      <div class="section-title">📋 Foglalások</div>
+      <div id="bookings-list"><div class="empty">Betöltés...</div></div>
+    </div>
+  </div>
+
+  <!-- USEREK TAB -->
+  <div id="tab-users" class="tab-content">
+    <div class="section" style="padding-top:16px">
+      <div class="section-title">👤 Regisztrált felhasználók</div>
+      <div id="users-list"><div class="empty">Betöltés...</div></div>
+    </div>
+  </div>
+
+  <!-- HIRDETMÉNYEK TAB -->
+  <div id="tab-announce" class="tab-content">
+    <div class="section" style="padding-top:16px">
+      <div class="section-title">📢 Új hirdetmény</div>
+      <div class="add-form">
+        <input type="text" id="new-emoji" placeholder="Emoji (pl. 🔥)" maxlength="4" style="width:80px;display:inline-block;margin-right:8px">
+        <textarea id="new-text" placeholder="Hirdetmény szövege..."></textarea>
+        <button class="btn" onclick="addAnnounce()">+ Hozzáadás</button>
+      </div>
+      <div class="section-title">📋 Aktív hirdetmények</div>
+      <div id="announce-list"><div class="empty">Betöltés...</div></div>
+    </div>
+  </div>
+
+  <!-- BEÁLLÍTÁSOK TAB -->
+  <div id="tab-settings" class="tab-content">
+    <div class="section" style="padding-top:16px">
+      <div class="section-title">⏰ Visszaszámlálás</div>
+      <div class="add-form">
+        <input type="text" id="cd-label" placeholder="Felirat (pl. Következő szerviz nap)">
+        <input type="datetime-local" id="cd-until">
+        <button class="btn" onclick="setCountdown()">Beállítás</button>
+      </div>
+      <div class="section-title">🔒 Jelszó csere</div>
+      <div class="add-form">
+        <input type="password" id="new-pass" placeholder="Új jelszó (min. 4 karakter)">
+        <button class="btn" onclick="changePass()">Mentés</button>
+      </div>
+      <div class="section-title">📱 Push értesítés</div>
+      <div class="add-form">
+        <p style="color:#888;font-size:.85rem;margin-bottom:12px">Kapcsold be a push értesítéseket, és minden új foglalásnál azonnal értesítést kapsz!</p>
+        <button class="btn" id="push-btn" onclick="togglePush()">🔔 Engedélyezés</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchTab('bookings',this)">
+      <span class="nav-icon">📋</span>
+      <span>Foglalások</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('users',this)">
+      <span class="nav-icon">👤</span>
+      <span>Userek</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('announce',this)">
+      <span class="nav-icon">📢</span>
+      <span>Hírek</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('settings',this)">
+      <span class="nav-icon">⚙️</span>
+      <span>Beállítás</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+const statusMap = {new:'Új',accepted:'Elfogadva',rejected:'Elutasítva',in_progress:'Folyamatban'};
+let swReg = null;
+
+// LOGIN
+async function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  const r = await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`});
+  const d = await r.json();
+  if (d.ok) {
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadData();
+    initPush();
+    setInterval(loadData, 30000); // auto-refresh 30mp
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+// TAB VÁLTÁS
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+// ADATOK BETÖLTÉS
+async function loadData() {
+  try {
+    const d = await fetch('/api/admin/data').then(r=>r.json());
+
+    // Stats
+    document.getElementById('s-total').textContent = d.bookings.length;
+    const newCount = d.bookings.filter(b=>b.status==='new').length;
+    document.getElementById('s-new').textContent = newCount;
+    document.getElementById('s-visitors').textContent = d.visitors?.total || 0;
+    document.getElementById('s-users').textContent = d.users.length;
+
+    // Új foglalás badge
+    const badge = document.getElementById('new-badge');
+    if (newCount > 0) { badge.style.display='block'; badge.textContent = newCount + ' új'; }
+    else { badge.style.display='none'; }
+
+    // Foglalások
+    const bl = document.getElementById('bookings-list');
+    if (!d.bookings.length) { bl.innerHTML='<div class="empty">Még nincs foglalás</div>'; }
+    else {
+      bl.innerHTML = d.bookings.map(b => `
+        <div class="booking-card ${b.status}">
+          <span class="status-badge ${b.status}">${statusMap[b.status]||b.status}</span>
+          <div class="booking-ic">${b.ic_name}</div>
+          <div class="booking-car">🚗 ${b.car}</div>
+          <div class="booking-goal">${b.goal}</div>
+          <div class="booking-discord">Discord: ${b.discord}</div>
+          ${b.notes?`<div style="color:#666;font-size:.78rem;margin-top:4px">📝 ${b.notes}</div>`:''}
+          <div class="booking-date">${b.created}</div>
+          <div class="booking-actions">
+            ${b.status!=='accepted'?`<button class="action-btn accept" onclick="bookingAction('${b.id}','accepted')">✅ Elfogad</button>`:''}
+            ${b.status!=='rejected'?`<button class="action-btn reject" onclick="bookingAction('${b.id}','rejected')">❌ Elutasít</button>`:''}
+            ${b.status==='new'?`<button class="action-btn progress" onclick="bookingAction('${b.id}','in_progress')">🔄 Folyamat</button>`:''}
+            ${b.status==='accepted'?`<a class="action-btn cert" href="/api/certificate/${b.id}" target="_blank">📜 Cert</a>`:''}
+            <button class="action-btn del" onclick="bookingAction('${b.id}','delete')">🗑</button>
+          </div>
+        </div>`).join('');
+    }
+
+    // Userek
+    const ul = document.getElementById('users-list');
+    if (!d.users.length) { ul.innerHTML='<div class="empty">Még nincs felhasználó</div>'; }
+    else {
+      ul.innerHTML = d.users.map(u => `
+        <div class="user-card">
+          <div class="user-avatar">${u.banned?'🚫':'👤'}</div>
+          <div class="user-info">
+            <div class="user-ic">${u.ic_name} ${u.banned?'<span style="color:#f87171;font-size:.7rem">TILTVA</span>':''}</div>
+            <div class="user-email">${u.email}</div>
+            <div class="user-meta">Discord: ${u.discord} · ${u.created||''}</div>
+          </div>
+          <div class="user-actions">
+            <button class="user-btn ${u.banned?'unban':'ban'}" onclick="banUser('${u.id}')">${u.banned?'Felold':'Tilt'}</button>
+          </div>
+        </div>`).join('');
+    }
+
+    // Hirdetmények
+    const al = document.getElementById('announce-list');
+    if (!d.announcements.length) { al.innerHTML='<div class="empty">Nincs hirdetmény</div>'; }
+    else {
+      al.innerHTML = d.announcements.map(a => `
+        <div class="announce-card" style="${!a.active?'opacity:.4':''}">
+          <div class="announce-emoji">${a.emoji||'📢'}</div>
+          <div class="announce-text">${a.text}</div>
+          <button class="announce-toggle" onclick="toggleAnnounce('${a.id}')" style="background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.2)">${a.active?'Ki':'Be'}</button>
+          <button class="announce-toggle" onclick="deleteAnnounce('${a.id}')" style="background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.2);margin-left:4px">🗑</button>
+        </div>`).join('');
+    }
+  } catch(e) { console.log('Hiba:', e.message); }
+}
+
+// ACTIONS
+async function bookingAction(id, action) {
+  if (action === 'delete' && !confirm('Törlöd a foglalást?')) return;
+  await fetch(`/api/admin/booking/${id}/${action}`, {method:'POST'});
+  loadData();
+}
+
+async function banUser(id) {
+  await fetch(`/api/admin/user/${id}/ban`, {method:'POST'});
+  loadData();
+}
+
+async function addAnnounce() {
+  const emoji = document.getElementById('new-emoji').value.trim() || '📢';
+  const text = document.getElementById('new-text').value.trim();
+  if (!text) return;
+  await fetch('/api/admin/announcement', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`emoji=${encodeURIComponent(emoji)}&text=${encodeURIComponent(text)}`});
+  document.getElementById('new-text').value = '';
+  loadData();
+}
+
+async function toggleAnnounce(id) {
+  await fetch(`/api/admin/announcement/${id}/toggle`, {method:'POST'});
+  loadData();
+}
+
+async function deleteAnnounce(id) {
+  if (!confirm('Törlöd?')) return;
+  await fetch(`/api/admin/announcement/${id}`, {method:'DELETE'});
+  loadData();
+}
+
+async function setCountdown() {
+  const label = document.getElementById('cd-label').value.trim();
+  const until = document.getElementById('cd-until').value;
+  if (!label || !until) return alert('Töltsd ki mindkét mezőt!');
+  await fetch('/api/admin/countdown', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`label=${encodeURIComponent(label)}&until=${encodeURIComponent(until)}`});
+  alert('✅ Visszaszámlálás beállítva!');
+}
+
+async function changePass() {
+  const p = document.getElementById('new-pass').value;
+  if (p.length < 4) return alert('Min. 4 karakter!');
+  await fetch('/api/admin/password',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`new_password=${encodeURIComponent(p)}`});
+  alert('✅ Jelszó megváltoztatva!');
+  document.getElementById('new-pass').value = '';
+}
+
+// PUSH
+async function initPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  swReg = await navigator.serviceWorker.register('/sw.js').catch(()=>null);
+  updatePushBtn();
+}
+
+async function updatePushBtn() {
+  const btn = document.getElementById('push-btn');
+  if (!swReg) { btn.textContent='🚫 Push nem támogatott'; return; }
+  const sub = await swReg.pushManager.getSubscription();
+  btn.textContent = sub ? '🔕 Push kikapcsolása' : '🔔 Push engedélyezése';
+  btn.style.background = sub ? '#22c55e' : '#f59e0b';
+}
+
+async function togglePush() {
+  if (!swReg) return;
+  const sub = await swReg.pushManager.getSubscription();
+  if (sub) {
+    await fetch('/api/push/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint})});
+    await sub.unsubscribe();
+    updatePushBtn();
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { alert('Engedélyezd az értesítéseket!'); return; }
+  const {publicKey} = await fetch('/api/push/vapid-key').then(r=>r.json());
+  const padding='='.repeat((4-publicKey.length%4)%4);
+  const base64=(publicKey+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=window.atob(base64);
+  const key=Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+  const newSub = await swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+  await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newSub)});
+  updatePushBtn();
+  alert('✅ Push értesítés bekapcsolva!');
+}
+
+// Enter key login
+document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

@@ -210,6 +210,7 @@ async function loadAll() {
       <div class="booking-meta">
         <span class="status ${b.status}">${statusMap[b.status] || b.status}</span>
         <span style="color:#555;font-size:0.78rem;">${b.created}</span>
+        ${b.status === 'accepted' ? `<a href="/api/certificate/${b.id}" target="_blank" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);color:#f59e0b;padding:3px 10px;border-radius:6px;font-size:0.75rem;text-decoration:none;font-weight:600">📜 Igazolás</a>` : ''}
       </div>
     </div>`).join(''); }
 

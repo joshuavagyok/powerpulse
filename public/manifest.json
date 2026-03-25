@@ -1,17 +1,25 @@
 {
   "name": "PowerPulse ECU Admin",
   "short_name": "PP Admin",
-  "description": "PowerPulse ECU — Admin panel",
-  "start_url": "/admin.html",
+  "description": "PowerPulse ECU — Admin panel mobilra",
+  "start_url": "/admin-mobile.html",
   "display": "standalone",
   "background_color": "#0a0a1a",
   "theme_color": "#f59e0b",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='24' fill='%230a0a1a'/><text y='140' x='30' font-size='130'>⚡</text></svg>",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%230a0a1a'/%3E%3Ctext y='140' x='30' font-size='130'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Foglalások",
+      "url": "/admin-mobile.html",
+      "description": "Foglalások kezelése"
     }
   ]
 }
