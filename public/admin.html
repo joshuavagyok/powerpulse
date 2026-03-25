@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 <canvas id="bg-canvas"></canvas>
@@ -322,6 +326,167 @@ async function changePassword() {
   document.getElementById('pw-msg').style.display='block';
   setTimeout(()=>document.getElementById('pw-msg').style.display='none', 3000);
 }
+
+// ===== PWA / PUSH ÉRTESÍTÉS =====
+let swReg = null;
+
+async function initPWA() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    swReg = await navigator.serviceWorker.register('/sw.js');
+    console.log('✅ Service Worker regisztrálva');
+    updatePushBtn();
+  } catch(e) { console.log('SW hiba:', e); }
+}
+
+async function updatePushBtn() {
+  const btn = document.getElementById('push-toggle-btn');
+  if (!btn || !swReg) return;
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    const sub = await swReg.pushManager.getSubscription();
+    btn.textContent = sub ? '🔔 Értesítés BE (kattints a kikapcsoláshoz)' : '🔕 Értesítés engedélyezve, de nem feliratkozott';
+    btn.style.background = sub ? '#22c55e' : '#f59e0b';
+    btn.dataset.active = sub ? '1' : '0';
+  } else if (perm === 'denied') {
+    btn.textContent = '🚫 Értesítés tiltva (böngészőben engedélyezd)';
+    btn.style.opacity = '0.5';
+  } else {
+    btn.textContent = '🔔 Push értesítés engedélyezése';
+  }
+}
+
+async function togglePush() {
+  if (!swReg) return;
+  const btn = document.getElementById('push-toggle-btn');
+  // Ha már aktív → leiratkozás
+  const sub = await swReg.pushManager.getSubscription();
+  if (sub) {
+    await fetch('/api/push/unsubscribe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ endpoint: sub.endpoint }) });
+    await sub.unsubscribe();
+    btn.textContent = '🔔 Push értesítés engedélyezése';
+    btn.style.background = '#f59e0b';
+    return;
+  }
+  // Engedélykérés
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { alert('Engedélyezd az értesítéseket a böngészőben!'); return; }
+  // VAPID key lekérése
+  const { publicKey } = await fetch('/api/push/vapid-key').then(r=>r.json());
+  const newSub = await swReg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
+  });
+  await fetch('/api/push/subscribe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(newSub) });
+  await updatePushBtn();
+  alert('✅ Push értesítés bekapcsolva! Új foglalásnál értesítést kapsz.');
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+// ===== KIHÍVÁSOK =====
+async function loadChallenges() {
+  const challenges = await fetch('/api/admin/data').then(r=>r.json()).then(d=>d).catch(()=>({challenges:[]}));
+  const list = await fetch('/api/challenges').then(r=>r.json()).catch(()=>[]);
+  const el = document.getElementById('challenges-list');
+  if (!el) return;
+  if (!list.length) { el.innerHTML='<p style="color:#555">Még nincs kihívás. Adj hozzá egyet!</p>'; return; }
+  el.innerHTML = list.map(c => `
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px">
+      <div style="font-size:2rem">${c.icon}</div>
+      <div style="flex:1">
+        <div style="font-weight:700">${c.title}</div>
+        <div style="color:#888;font-size:.85rem">${c.description}</div>
+        <div style="color:#f59e0b;font-size:.82rem;margin-top:4px">Típus: ${c.type} | Cél: ${c.goal} | Jutalom: ${c.reward}</div>
+      </div>
+      <button onclick="deleteChallenge('${c.id}')" style="background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.8rem">Törlés</button>
+    </div>`).join('');
+}
+
+async function addChallenge() {
+  const title = document.getElementById('ch-title').value.trim();
+  const desc = document.getElementById('ch-desc').value.trim();
+  const type = document.getElementById('ch-type').value;
+  const goal = document.getElementById('ch-goal').value;
+  const reward = document.getElementById('ch-reward').value.trim();
+  const icon = document.getElementById('ch-icon').value.trim() || '🏆';
+  if (!title || !goal) return alert('Cím és cél kötelező!');
+  const r = await fetch('/api/admin/challenges/add', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `title=${encodeURIComponent(title)}&description=${encodeURIComponent(desc)}&type=${type}&goal=${goal}&reward=${encodeURIComponent(reward)}&icon=${encodeURIComponent(icon)}`
+  });
+  const d = await r.json();
+  if (d.ok) { document.getElementById('ch-title').value=''; document.getElementById('ch-desc').value=''; document.getElementById('ch-reward').value=''; loadChallenges(); }
+  else alert('Hiba: ' + d.error);
+}
+
+async function deleteChallenge(id) {
+  if (!confirm('Törlöd a kihívást?')) return;
+  await fetch(`/api/admin/challenges/${id}`, { method: 'DELETE' });
+  loadChallenges();
+}
+
+// PWA init
+initPWA();
+</script>
+
+<!-- Push értesítés + Kihívások UI az admin panelbe -->
+<script>
+// Hozzáadjuk a push gombot és kihívás szekciót dinamikusan az admin panel betöltésekor
+document.addEventListener('DOMContentLoaded', () => {
+  const adminView = document.getElementById('admin-view');
+  if (!adminView) return;
+
+  // Push értesítés szekció hozzáadása
+  const pushSection = document.createElement('div');
+  pushSection.style.cssText = 'margin-bottom:32px';
+  pushSection.innerHTML = `
+    <div class="admin-header" style="margin-bottom:16px"><h2 style="font-size:20px">📱 Admin Mobilapp / Push értesítés</h2></div>
+    <div style="background:rgba(12,12,30,0.95);border:1.5px solid rgba(245,158,11,0.2);border-radius:12px;padding:24px">
+      <p style="color:#888;font-size:.9rem;margin-bottom:16px">Telepítsd az oldalt az asztalodon/telefonodra (PWA), és kapsz értesítést minden új foglalásnál — mint egy Messenger üzenet!</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <button id="push-toggle-btn" onclick="togglePush()" style="padding:12px 24px;background:#f59e0b;color:#0a0a1a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:.9rem">🔔 Push értesítés engedélyezése</button>
+        <span style="color:#555;font-size:.82rem">iOS: Safari → Megosztás → „Főképernyőre" | Android: Chrome menü → Alkalmazás telepítése</span>
+      </div>
+    </div>`;
+  adminView.appendChild(pushSection);
+
+  // Kihívások szekció
+  const chalSection = document.createElement('div');
+  chalSection.style.cssText = 'margin-bottom:32px';
+  chalSection.innerHTML = `
+    <div class="admin-header" style="margin-bottom:16px"><h2 style="font-size:20px">🏆 Kihívások kezelése</h2></div>
+    <div style="background:rgba(12,12,30,0.95);border:1.5px solid rgba(245,158,11,0.2);border-radius:12px;padding:24px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="color:#888;font-size:.82rem;display:block;margin-bottom:4px">Ikon emoji</label><input id="ch-icon" type="text" placeholder="🏆" style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem"></div>
+        <div><label style="color:#888;font-size:.82rem;display:block;margin-bottom:4px">Típus</label>
+          <select id="ch-type" style="width:100%;padding:8px 12px;background:#0a0a1a;border:1.5px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem">
+            <option value="referral">🔗 Referral (meghívott barátok)</option>
+            <option value="booking">🔧 Foglalás (elvégzett szerelések)</option>
+            <option value="spin">🎰 Pörgetés (kerékpörgetések)</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="color:#888;font-size:.82rem;display:block;margin-bottom:4px">Kihívás neve</label><input id="ch-title" type="text" placeholder="pl. Hozz 10 barátot!" style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem"></div>
+        <div><label style="color:#888;font-size:.82rem;display:block;margin-bottom:4px">Cél (szám)</label><input id="ch-goal" type="number" placeholder="10" style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem"></div>
+      </div>
+      <div style="margin-bottom:12px"><label style="color:#888;font-size:.82rem;display:block;margin-bottom:4px">Leírás</label><input id="ch-desc" type="text" placeholder="pl. Hívj meg 10 barátot a saját kódoddal!" style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem"></div>
+      <div style="margin-bottom:16px"><label style="color:#888;font-size:.82rem;display:block;margin-bottom:4px">Jutalom leírása</label><input id="ch-reward" type="text" placeholder="pl. Értékes nyeremény — személyesen egyeztetve!" style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:.9rem"></div>
+      <button onclick="addChallenge()" style="padding:10px 24px;background:#f59e0b;color:#0a0a1a;border:none;border-radius:8px;font-weight:700;cursor:pointer">+ Kihívás hozzáadása</button>
+    </div>
+    <div id="challenges-list"><p style="color:#555">Betöltés...</p></div>`;
+  adminView.appendChild(chalSection);
+
+  // Betöltés ha már be van lépve
+  if (document.getElementById('admin-view').style.display !== 'none') loadChallenges();
+});
 </script>
 </body>
 </html>

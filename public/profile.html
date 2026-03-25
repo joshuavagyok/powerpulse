@@ -148,6 +148,12 @@ input:focus { outline:none; border-color:#f59e0b; }
     </div>
   </div>
 
+  <!-- Kihívások -->
+  <div class="card" style="margin-top:24px;">
+    <h3>🏆 Kihívások</h3>
+    <div id="challenges-list"><div class="empty">Betöltés...</div></div>
+  </div>
+
   <!-- SeeCity státusz + Garázsnapló link -->
   <div class="grid" style="margin-top:24px;">
     <div class="card">
@@ -308,10 +314,35 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Kihívások
+async function loadChallenges() {
+  const list = await fetch('/api/challenges/my').then(r=>r.json()).catch(()=>[]);
+  const el = document.getElementById('challenges-list');
+  if (!list.length) { el.innerHTML='<div class="empty">Nincs aktív kihívás</div>'; return; }
+  el.innerHTML = list.map(c => {
+    const pct = Math.min(100, Math.round((c.progress / c.goal) * 100));
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:1.5rem">${c.icon}</span>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.95rem">${c.title} ${c.completed?'✅':''}</div>
+          <div style="color:#888;font-size:.82rem">${c.description}</div>
+        </div>
+        <div style="text-align:right;font-size:.85rem;color:#f59e0b;font-weight:600">${c.progress}/${c.goal}</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);border-radius:6px;height:8px;overflow:hidden">
+        <div style="background:${c.completed?'#4ade80':'#f59e0b'};height:100%;width:${pct}%;border-radius:6px;transition:.3s"></div>
+      </div>
+      ${c.completed?`<div style="color:#4ade80;font-size:.82rem;margin-top:6px">🎁 Jutalom: ${c.reward}</div>`:`<div style="color:#555;font-size:.78rem;margin-top:4px">Jutalom: ${c.reward}</div>`}
+    </div>`;
+  }).join('');
+}
+
 loadAll();
 loadLoyalty();
 loadReferral();
 loadSeeCity();
+loadChallenges();
 </script>
 </body>
 </html>

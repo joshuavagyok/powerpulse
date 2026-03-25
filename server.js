@@ -6,6 +6,12 @@ const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
+const webpush = require('web-push');
+
+// VAPID kulcsok (push értesítéshez)
+const VAPID_PUBLIC = process.env.VAPID_PUBLIC || 'BM9hxqJG_w9E8Dls2zsy11Q5zEhppb_ZK4LFQrB2EH6yAWvdlqQ3a2TqZwBetQEYoSn52f7ZNigoNZt4epRNIMM';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'jIAoisyLrIYwJ5N8ST_bMXT7ilc_793DutGAWgJjbhs';
+webpush.setVapidDetails('mailto:josika886@gmail.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
 // ===== KONFIG =====
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://josika886_db_user:0mTMsuHGgB2aPISK@powerpulse.fbwh8gh.mongodb.net/?appName=powerpulse';
@@ -552,6 +558,101 @@ app.post('/api/admin/password', requireAdmin, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ===== PUSH ÉRTESÍTÉS =====
+// VAPID public key lekérése (admin app regisztrációhoz)
+app.get('/api/push/vapid-key', (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC });
+});
+
+// Admin push subscription mentése
+app.post('/api/push/subscribe', requireAdmin, async (req, res) => {
+  try {
+    const sub = req.body;
+    if (!sub || !sub.endpoint) return res.json({ error: 'Érvénytelen subscription!' });
+    await db.collection('push_subs').updateOne(
+      { endpoint: sub.endpoint },
+      { $set: { ...sub, created: now() } },
+      { upsert: true }
+    );
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin push subscription törlése
+app.post('/api/push/unsubscribe', requireAdmin, async (req, res) => {
+  try {
+    await db.collection('push_subs').deleteOne({ endpoint: req.body.endpoint });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Push küldés minden admin subscription-re
+async function sendPushToAdmins(payload) {
+  try {
+    const subs = await db.collection('push_subs').find().toArray();
+    for (const sub of subs) {
+      webpush.sendNotification(sub, JSON.stringify(payload)).catch(e => {
+        if (e.statusCode === 410) {
+          db.collection('push_subs').deleteOne({ endpoint: sub.endpoint }).catch(()=>{});
+        }
+      });
+    }
+  } catch(e) { console.log('Push hiba:', e.message); }
+}
+
+// ===== KIHÍVÁSOK =====
+// Kihívás lista lekérése (publikus)
+app.get('/api/challenges', async (req, res) => {
+  try {
+    const challenges = await db.collection('challenges').find({ active: true }).sort({ created: -1 }).toArray();
+    res.json(challenges);
+  } catch(e) { res.json([]); }
+});
+
+// User saját kihívás progress
+app.get('/api/challenges/my', requireUser, async (req, res) => {
+  try {
+    const user = await db.collection('users').findOne({ id: req.session.userId });
+    const challenges = await db.collection('challenges').find({ active: true }).toArray();
+    const referred = user.referredCount || 0;
+    const bookings = await db.collection('bookings').countDocuments({ userId: req.session.userId, status: { $ne: 'rejected' } });
+    const spins = await db.collection('prizes').countDocuments({ userId: req.session.userId });
+
+    const result = challenges.map(c => {
+      let progress = 0;
+      if (c.type === 'referral') progress = Math.min(referred, c.goal);
+      else if (c.type === 'booking') progress = Math.min(bookings, c.goal);
+      else if (c.type === 'spin') progress = Math.min(spins, c.goal);
+      const completed = progress >= c.goal;
+      return { ...c, progress, completed };
+    });
+    res.json(result);
+  } catch(e) { res.json([]); }
+});
+
+// Admin: kihívás létrehozása
+app.post('/api/admin/challenges/add', requireAdmin, async (req, res) => {
+  try {
+    const { title, description, type, goal, reward, icon } = req.body;
+    if (!title || !type || !goal) return res.json({ error: 'Hiányzó adatok!' });
+    await db.collection('challenges').insertOne({
+      id: uid(), title, description: description || '',
+      type, // referral | booking | spin
+      goal: parseInt(goal), reward: reward || '',
+      icon: icon || '🏆',
+      active: true, created: now()
+    });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/admin/challenges/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.collection('challenges').deleteOne({ id: req.params.id });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ===== DISCORD WEBHOOK =====
 const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || '';
 async function sendDiscordNotif(content) {
@@ -779,6 +880,13 @@ app.post('/api/submit', async (req, res) => {
     }
     // Discord értesítés
     await sendDiscordNotif(`🔧 **Új foglalás érkezett!**\n👤 ${ic_name} (Discord: ${discord})\n🚗 ${car}\n🎯 ${goal}${notes ? '\n📝 ' + notes : ''}`);
+    // Push értesítés adminoknak
+    await sendPushToAdmins({
+      title: '🔧 Új foglalás!',
+      body: `${ic_name} — ${car} | ${goal}`,
+      icon: '/icon-192.png',
+      url: '/admin.html'
+    });
     res.redirect('/?success=1');
   } catch(e) { res.redirect('/?error=1'); }
 });
