@@ -695,7 +695,7 @@ async function generateSimpleCertPNG(booking, res) {
   ctx.fillText(`Igazolás ID: ${certId}  ·  ${booking.created}`, W/2, 755);
   res.setHeader('Content-Type','image/png');
   res.setHeader('Content-Disposition',`attachment; filename="PowerPulse-${booking.ic_name.replace(/\s+/g,'_')}.png"`);
-  canvas.createPNGStream().pipe(res);
+  canvas.encode('png').then(buf => { res.end(buf); });
 }
 
 async function generateServiceCertPNG(cert, res) {
@@ -977,7 +977,7 @@ async function generateServiceCertPNG(cert, res) {
 
   res.setHeader('Content-Type', 'image/png');
   res.setHeader('Content-Disposition', `attachment; filename="Garancialevél-${cert.ic_name.replace(/\s+/g,'_')}-${cert.certId}.png"`);
-  canvas.createPNGStream().pipe(res);
+  canvas.encode('png').then(buf => { res.end(buf); });
 }
 
 
@@ -1149,7 +1149,7 @@ app.get('/api/certificate/:bookingId', async (req, res) => {
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', `attachment; filename="PowerPulse-${booking.ic_name.replace(/\s+/g,'_')}-${certId}.png"`);
-    canvas.createPNGStream().pipe(res);
+    canvas.encode('png').then(buf => { res.end(buf); });
   } catch(e) {
     console.log('Certificate hiba:', e.message);
     res.status(500).json({ error: e.message });
